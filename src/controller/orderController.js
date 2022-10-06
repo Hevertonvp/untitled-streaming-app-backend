@@ -1,21 +1,37 @@
-/* eslint-disable no-unused-vars */
-const moment = require('moment-timezone');
-const Costumer = require('../model/costumer');
+const Order = require('../model/order');
+
+// exclusive to admin:
+// delete order
+// update order
+// FILTERS:
+// sorting by order price
+// sorting by date of sale
 
 exports.index = async (req, res) => {
-  const queryObj = { ...req.query };
-  const excludedFields = ['page', 'sort', 'limit', 'fields']; //  excluding these field values to avoid if it passed as query parameters
-  excludedFields.forEach((el) => {
-    delete queryObj[el];
+  let queryObj = { ...req.query };
+  const deletedFields = ['sort', 'page', 'limit', 'fields'];
+  deletedFields.forEach((field) => {
+    delete queryObj[field];
   });
+  if (req.query.sort) {
+    const sortBy = req.query.sort.split(',').join(' ');
+    queryObj = queryObj.sort(sortBy);
+  } else {
+    queryObj = queryObj.sort('-createdAt');
+  }
+  // limiting
+  if (req.query.fields) {
+    const fields = req.query.fields.split(',').join(' ');
+    queryObj = queryObj.select(fields);
+  } else {
+    queryObj = queryObj.select('-__v');
+  }
   try {
-    const costumers = Costumer.find(queryObj);
-
+    const newOrder = await Order.find(queryObj);
     res.status(201).json({
       status: 'success',
       data: {
-        results: costumers.length,
-        costumers,
+        order: newOrder, // everytime i see you falling...
       },
     });
   } catch (error) {
@@ -28,14 +44,11 @@ exports.index = async (req, res) => {
 
 exports.store = async (req, res) => {
   try {
-    if (req.body.isOnTrial) { // new costumers have 7 days to register
-      req.body.expirationDate = moment().add(7, 'days').calendar();
-    }
-    const costumer = await Costumer.create(req.body);
+    const newOrder = await Order.create(req.body);
     res.status(201).json({
       status: 'success',
       data: {
-        costumer,
+        order: newOrder,
       },
     });
   } catch (error) {
@@ -46,12 +59,12 @@ exports.store = async (req, res) => {
 };
 exports.show = async (req, res) => {
   try {
-    const costumer = await Costumer.findById(req.params.id);
+    const neworder = await Order.findById(req.params.id);
 
     res.status(201).json({
       status: 'success',
       data: {
-        costumer,
+        order: neworder,
       },
     });
   } catch (error) {
@@ -62,7 +75,7 @@ exports.show = async (req, res) => {
 };
 exports.update = async (req, res) => {
   try {
-    const costumer = await Costumer.findByIdAndUpdate(
+    const neworder = await Order.findByIdAndUpdate(
       req.params.id,
       req.body,
       {
@@ -74,7 +87,7 @@ exports.update = async (req, res) => {
     res.status(201).json({
       status: 'success',
       data: {
-        costumer,
+        order: neworder,
       },
     });
   } catch (error) {
@@ -85,14 +98,14 @@ exports.update = async (req, res) => {
 };
 exports.destroy = async (req, res) => {
   try {
-    const costumer = await Costumer.findByIdAndDelete(req.params.id, {
+    const neworder = await Order.findByIdAndDelete(req.params.id, {
       rawResult: true,
     });
 
     res.status(201).json({
       status: 'success',
       data: {
-        costumer,
+        order: neworder,
       },
     });
   } catch (error) {

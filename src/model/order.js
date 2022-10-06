@@ -2,8 +2,8 @@ const mongoose = require('mongoose');
 
 const { Schema } = mongoose;
 
-const SalesRecordSchema = mongoose.Schema({
-  saleDate: {
+const OrderSchema = mongoose.Schema({
+  createdAt: {
     type: Date,
     required: true,
   },
@@ -19,8 +19,12 @@ const SalesRecordSchema = mongoose.Schema({
     type: Schema.Types.ObjectId,
     ref: 'Product',
   },
+  admin: {
+    type: Schema.Types.ObjectId,
+    ref: 'Admin',
+  },
 });
 
-const SalesRecord = mongoose.model('SalesRecord', SalesRecordSchema);
+const SalesRecord = mongoose.model('SalesRecord', OrderSchema);
 
 module.exports = SalesRecord;

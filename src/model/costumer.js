@@ -1,7 +1,5 @@
 const mongoose = require('mongoose');
 
-const { Schema } = mongoose;
-
 const costumerSchema = mongoose.Schema({
   name: {
     type: String,
@@ -18,12 +16,8 @@ const costumerSchema = mongoose.Schema({
     type: Boolean,
     required: true,
   },
-  trialExpirationDate: {
+  expirationDate: {
     type: Date,
-  },
-  salesRecord: {
-    type: Schema.types.ObjectId,
-    ref: 'SalesRecord',
   },
   createdAt: {
     type: Date,

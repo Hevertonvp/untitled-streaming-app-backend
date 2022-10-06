@@ -8,9 +8,8 @@ const productSchema = mongoose.Schema({
   price: {
     type: Number,
   },
-  expirationTime: {
+  expirationDate: {
     type: Date,
-    required: true,
   },
   code: {
     type: String,
@@ -19,7 +18,6 @@ const productSchema = mongoose.Schema({
   },
   image: {
     type: String, // url
-    required: true,
   },
 });
 
