@@ -3,13 +3,14 @@ const moment = require('moment-timezone');
 const Costumer = require('../model/costumer');
 
 exports.index = async (req, res) => {
-  const queryObj = { ...req.query };
-  const excludedFields = ['page', 'sort', 'limit', 'fields']; //  excluding these field values to avoid if it passed as query parameters
-  excludedFields.forEach((el) => {
-    delete queryObj[el];
-  });
+  // const queryObj = { ...req.query };
+  // const excludedFields = ['page', 'sort', 'limit', 'fields'];
+  //  excluding these field values to avoid if it passed as query parameters
+  // excludedFields.forEach((el) => {
+  //   delete queryObj[el];
+  // });
   try {
-    const costumers = Costumer.find(queryObj);
+    const costumers = await Costumer.find();
 
     res.status(201).json({
       status: 'success',

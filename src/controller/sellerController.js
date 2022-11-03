@@ -11,6 +11,7 @@ exports.index = async (req, res) => {
     res.status(201).json({
       status: 'success',
       data: {
+        results: newSellers.length,
         sellers: newSellers,
       },
     });

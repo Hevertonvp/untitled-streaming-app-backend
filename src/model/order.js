@@ -1,4 +1,5 @@
 const mongoose = require('mongoose');
+const moment = require('moment');
 
 const { Schema } = mongoose;
 
@@ -6,25 +7,22 @@ const OrderSchema = mongoose.Schema({
   createdAt: {
     type: Date,
     required: true,
+    default: moment().toDate(),
   },
-  seller: {
+  sellerId: {
     type: Schema.Types.ObjectId,
     ref: 'Seller',
   },
-  costumer: {
+  costumerId: {
     type: Schema.Types.ObjectId,
     ref: 'Costumer',
   },
-  product: {
+  productId: {
     type: Schema.Types.ObjectId,
     ref: 'Product',
   },
-  admin: {
-    type: Schema.Types.ObjectId,
-    ref: 'Admin',
-  },
 });
 
-const SalesRecord = mongoose.model('SalesRecord', OrderSchema);
+const Order = mongoose.model('Order', OrderSchema);
 
-module.exports = SalesRecord;
+module.exports = Order;

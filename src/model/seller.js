@@ -1,7 +1,7 @@
 const mongoose = require('mongoose');
 
 const { Schema } = mongoose;
-const sellerSchema = mongoose.Schema({
+const sellerSchema = Schema({
   userName: {
     type: String,
     required: [true, 'must have a valid name'],
@@ -22,18 +22,6 @@ const sellerSchema = mongoose.Schema({
   isActive: {
     type: Boolean,
   },
-  costumers: [{
-    type: Schema.Types.ObjectId,
-    ref: 'Costumer',
-  }],
-  products: [{
-    type: Schema.Types.ObjectId,
-    ref: 'Product',
-  }],
-  sales: [{
-    type: Schema.Types.ObjectId,
-    ref: 'SalesRecord',
-  }],
 });
 
 const Seller = mongoose.model('Seller', sellerSchema);

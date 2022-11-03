@@ -1,4 +1,5 @@
 const mongoose = require('mongoose');
+const moment = require('moment');
 
 const productSchema = mongoose.Schema({
   name: {
@@ -10,10 +11,11 @@ const productSchema = mongoose.Schema({
   },
   expirationDate: {
     type: Date,
+    default: moment().add(1, 'year'), // for testing purposes
   },
   code: {
-    type: String,
-    unique: true,
+    type: Number,
+    default: Math.random() * 100, // for testing purposes
     // make this private!
   },
   image: {

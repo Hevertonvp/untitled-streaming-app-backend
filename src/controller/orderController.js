@@ -1,37 +1,34 @@
+/* eslint-disable radix */
+/* eslint-disable quote-props */
+/* eslint-disable no-unused-vars */
+const moment = require('moment');
 const Order = require('../model/order');
 
-// exclusive to admin:
-// delete order
-// update order
+const APIfeatures = require('../utils/api-features');
+
+// exclusive to admin: // delete order // update order
+
 // FILTERS:
 // sorting by order price
 // sorting by date of sale
 
+// exports.aliasTopSellers = (req) => {
+//   req.query.limit = '5';
+// };
+
 exports.index = async (req, res) => {
-  let queryObj = { ...req.query };
-  const deletedFields = ['sort', 'page', 'limit', 'fields'];
-  deletedFields.forEach((field) => {
-    delete queryObj[field];
-  });
-  if (req.query.sort) {
-    const sortBy = req.query.sort.split(',').join(' ');
-    queryObj = queryObj.sort(sortBy);
-  } else {
-    queryObj = queryObj.sort('-createdAt');
-  }
-  // limiting
-  if (req.query.fields) {
-    const fields = req.query.fields.split(',').join(' ');
-    queryObj = queryObj.select(fields);
-  } else {
-    queryObj = queryObj.select('-__v');
-  }
   try {
-    const newOrder = await Order.find(queryObj);
+    const features = new APIfeatures(Order.find(), req.query)
+      .filter()
+      .sort()
+      .limit()
+      .paginate();
+    const newOrder = await features.query;
     res.status(201).json({
       status: 'success',
+      results: newOrder.length,
       data: {
-        order: newOrder, // everytime i see you falling...
+        order: newOrder,
       },
     });
   } catch (error) {
@@ -59,12 +56,12 @@ exports.store = async (req, res) => {
 };
 exports.show = async (req, res) => {
   try {
-    const neworder = await Order.findById(req.params.id);
+    const newOrder = await Order.findById(req.params.id);
 
     res.status(201).json({
       status: 'success',
       data: {
-        order: neworder,
+        newOrder,
       },
     });
   } catch (error) {
@@ -75,7 +72,7 @@ exports.show = async (req, res) => {
 };
 exports.update = async (req, res) => {
   try {
-    const neworder = await Order.findByIdAndUpdate(
+    const newOrder = await Order.findByIdAndUpdate(
       req.params.id,
       req.body,
       {
@@ -87,7 +84,7 @@ exports.update = async (req, res) => {
     res.status(201).json({
       status: 'success',
       data: {
-        order: neworder,
+        order: newOrder,
       },
     });
   } catch (error) {
@@ -98,15 +95,120 @@ exports.update = async (req, res) => {
 };
 exports.destroy = async (req, res) => {
   try {
-    const neworder = await Order.findByIdAndDelete(req.params.id, {
+    const newOrder = await Order.findByIdAndDelete(req.params.id, {
       rawResult: true,
     });
 
     res.status(201).json({
       status: 'success',
       data: {
-        order: neworder,
+        order: newOrder,
       },
+    });
+  } catch (error) {
+    res.status(400).json({
+      message: error,
+    });
+  }
+};
+
+exports.orderStats = async (req, res) => {
+  const startTime = moment().subtract(7, 'days');
+  try {
+    const stats = await Order.aggregate([
+
+      {
+        $lookup: {
+          from: 'sellers',
+          localField: 'sellerId',
+          foreignField: '_id',
+          as: 'sellerData',
+        },
+      },
+      {
+        $lookup: {
+          from: 'products',
+          localField: 'productId',
+          foreignField: '_id',
+          as: 'productData',
+        },
+
+      },
+      {
+        $project: {
+          createdAt: 1,
+          sellerData: { userName: 1, _id: 1 },
+          productData: {
+            id: 1,
+            name: 1,
+            price: 1,
+            expirationDate: 1,
+          },
+        },
+      },
+
+    ]);
+    res.status(201).json({
+      status: 'success',
+      results: stats.length,
+      data: stats,
+    });
+  } catch (error) {
+    res.status(400).json({
+      message: error,
+    });
+  }
+};
+// e se o cara não tiver vendas?
+exports.sellerStats = async (req, res) => {
+  // the date range was defined in the request query
+  try {
+    let range = moment().subtract(1, 'months'); // default
+
+    if (req.query.range) {
+      range = moment().subtract((req.query.range * 1 || 1), 'days');
+    }
+
+    const stats = await Order.aggregate([
+      {
+        $lookup: {
+          from: 'sellers',
+          localField: 'sellerId',
+          foreignField: '_id',
+          as: 'sellerData',
+        },
+      },
+      {
+        $match: { createdAt: { $gte: range.toDate() } },
+      },
+      {
+        $project: {
+          sellerData: {
+            password: 0,
+            __v: 0,
+          },
+
+        },
+      },
+      {
+        $group: {
+          _id: ['$sellerData'],
+          totalSells: { $sum: 1 },
+          lastSell: { $last: '$createdAt' },
+          // use here to get more of the sellers stats
+        },
+      },
+      {
+        $sort: {
+          totalSells: -1,
+        },
+      },
+
+    ]);
+    res.status(201).json({
+      status: 'success',
+      results: stats.length,
+      data: stats,
     });
   } catch (error) {
     res.status(400).json({

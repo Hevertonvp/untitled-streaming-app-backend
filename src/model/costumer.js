@@ -1,5 +1,7 @@
 const mongoose = require('mongoose');
 
+// const { Schema } = mongoose;
+
 const costumerSchema = mongoose.Schema({
   name: {
     type: String,
@@ -19,6 +21,7 @@ const costumerSchema = mongoose.Schema({
   expirationDate: {
     type: Date,
   },
+  // products: [{ type: Schema.Types.ObjectId, ref: 'Product' }], //it doens't need this, right?
   createdAt: {
     type: Date,
     default: Date.now(),
