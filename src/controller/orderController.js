@@ -3,18 +3,11 @@
 /* eslint-disable no-unused-vars */
 const moment = require('moment');
 const Order = require('../model/order');
+const Seller = require('../model/seller');
+const Product = require('../model/product');
+const Costumer = require('../model/costumer');
 
 const APIfeatures = require('../utils/api-features');
-
-// exclusive to admin: // delete order // update order
-
-// FILTERS:
-// sorting by order price
-// sorting by date of sale
-
-// exports.aliasTopSellers = (req) => {
-//   req.query.limit = '5';
-// };
 
 exports.index = async (req, res) => {
   try {
@@ -42,15 +35,25 @@ exports.index = async (req, res) => {
 exports.store = async (req, res) => {
   try {
     const newOrder = await Order.create(req.body);
+    const dbSeller = await Seller.findById(req.body.seller);// funciona, mas é o correto?
+    const dbProduct = await Product.findById(req.body.products);
+    const dbCostumer = await Costumer.findById(req.body.costumer);
+    const minimumPrice = dbProduct.productPrice + (dbProduct.productPrice * (20 / 100));
+
+    if (!dbSeller || !dbProduct || !dbCostumer) {
+      throw new Error('verifique se o vendedor, o cliente ou produto existem no banco de dados');
+    }
+    // business rule: a new order must have a minimum 20% value increase in all his products to...
+    // complain the service tax.
     res.status(201).json({
       status: 'success',
       data: {
         order: newOrder,
       },
     });
-  } catch (error) {
+  } catch (e) {
     res.status(400).json({
-      message: error,
+      message: `por favor, verifique o erro: ${e}`,
     });
   }
 };
@@ -71,6 +74,7 @@ exports.show = async (req, res) => {
   }
 };
 exports.update = async (req, res) => {
+  // editar um pedido parece ser uma boa ideia
   try {
     const newOrder = await Order.findByIdAndUpdate(
       req.params.id,
@@ -113,32 +117,41 @@ exports.destroy = async (req, res) => {
 };
 
 exports.orderStats = async (req, res) => {
-  const startTime = moment().subtract(7, 'days');
+  let range = moment().subtract(1, 'months'); // default
+
+  if (req.query.range) {
+    range = moment().subtract((req.query.range * 1 || 1), 'days');
+  }
   try {
     const stats = await Order.aggregate([
 
       {
         $lookup: {
           from: 'sellers',
-          localField: 'sellerId',
+          localField: 'seller',
           foreignField: '_id',
-          as: 'sellerData',
+          as: 'seller',
         },
       },
       {
         $lookup: {
           from: 'products',
-          localField: 'productId',
+          localField: 'products',
           foreignField: '_id',
-          as: 'productData',
+          as: 'products',
         },
 
       },
       {
+        $match: { createdAt: { $gte: range.toDate() } },
+      },
+      { $addFields: { orderValue: { $sum: '$products.price' } } },
+      {
         $project: {
           createdAt: 1,
-          sellerData: { userName: 1, _id: 1 },
-          productData: {
+          orderValue: 1,
+          seller: { userName: 1, _id: 1 },
+          products: {
             id: 1,
             name: 1,
             price: 1,
@@ -147,11 +160,16 @@ exports.orderStats = async (req, res) => {
         },
       },
 
+      {
+        $sort: {
+          createdAt: -1,
+        },
+      },
     ]);
     res.status(201).json({
       status: 'success',
       results: stats.length,
-      data: stats,
+      orders: stats,
     });
   } catch (error) {
     res.status(400).json({
@@ -163,39 +181,37 @@ exports.orderStats = async (req, res) => {
 exports.sellerStats = async (req, res) => {
   // the date range was defined in the request query
   try {
-    let range = moment().subtract(1, 'months'); // default
-
-    if (req.query.range) {
-      range = moment().subtract((req.query.range * 1 || 1), 'days');
-    }
-
     const stats = await Order.aggregate([
       {
         $lookup: {
           from: 'sellers',
-          localField: 'sellerId',
+          localField: 'seller',
           foreignField: '_id',
-          as: 'sellerData',
+          as: 'seller',
         },
       },
       {
-        $match: { createdAt: { $gte: range.toDate() } },
+        $lookup: {
+          from: 'products',
+          localField: 'products',
+          foreignField: '_id',
+          as: 'products',
+        },
       },
       {
         $project: {
-          sellerData: {
+          seller: {
             password: 0,
             __v: 0,
           },
-
         },
       },
       {
         $group: {
-          _id: ['$sellerData'],
+          _id: '$seller',
           totalSells: { $sum: 1 },
           lastSell: { $last: '$createdAt' },
-          // use here to get more of the sellers stats
+          // add to get more sellers stats
         },
       },
       {

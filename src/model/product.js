@@ -6,8 +6,9 @@ const productSchema = mongoose.Schema({
     type: String,
     required: true,
   },
-  price: {
+  productPrice: {
     type: Number,
+    required: true,
   },
   expirationDate: {
     type: Date,

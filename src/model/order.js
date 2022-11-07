@@ -9,17 +9,21 @@ const OrderSchema = mongoose.Schema({
     required: true,
     default: moment().toDate(),
   },
-  sellerId: {
+  seller: {
     type: Schema.Types.ObjectId,
     ref: 'Seller',
   },
-  costumerId: {
+  costumer: {
     type: Schema.Types.ObjectId,
     ref: 'Costumer',
   },
-  productId: {
+  products: [{
     type: Schema.Types.ObjectId,
     ref: 'Product',
+  }],
+  orderPrice: {
+    type: Number,
+    required: true,
   },
 });
 

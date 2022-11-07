@@ -1,24 +1,16 @@
 /* eslint-disable no-unused-vars */
 const moment = require('moment-timezone');
 const Product = require('../model/product');
+const APIfeatures = require('../utils/api-features');
 
 exports.index = async (req, res) => {
   // ordem de preço
-
-  const queryObj = { ...req.query };
-  const excludedFields = ['page', 'sort', 'limit', 'fields']; //  excluding these field values to avoid if it passed as query parameters
-  excludedFields.forEach((el) => {
-    delete queryObj[el];
-  });
-  let queryString = JSON.stringify(queryObj);
-  queryString = queryString.replace(/\b(gte|gt|lte|lt)\b/g, (match) => `$${match}`);
-  let query = Product.find(JSON.parse(queryString), 'name');
-
-  // SORTING
-  if (req.query.sort) {
-    query = query.sort(req.query.sort); // value passed in query sort
-  }
-  const products = await query;
+  const features = new APIfeatures(Product.find(), req.query)
+    .filter()
+    .sort()
+    .limit()
+    .paginate();
+  const products = await features.query;
   try {
     res.status(201).json({
       status: 'success',
@@ -68,6 +60,7 @@ exports.show = async (req, res) => {
 };
 exports.update = async (req, res) => {
   try {
+    console.log(req.params.id);
     const product = await Product.findByIdAndUpdate(
       req.params.id,
       req.body,
