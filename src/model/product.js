@@ -14,6 +14,10 @@ const productSchema = mongoose.Schema({
     type: Date,
     default: moment().add(1, 'year'), // for testing purposes
   },
+  isActive: {
+    type: Boolean,
+    default: true,
+  },
   code: {
     type: Number,
     default: Math.random() * 100, // for testing purposes

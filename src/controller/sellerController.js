@@ -6,8 +6,13 @@ const Seller = require('../model/seller');
 // by type of plan
 
 exports.index = async (req, res) => {
+  // incluir ou não desativados
+
   try {
-    const newSellers = await Seller.find();
+    const newSellers = await Seller
+      .find()
+      .sort('isActive');
+
     res.status(201).json({
       status: 'success',
       data: {
@@ -79,9 +84,31 @@ exports.update = async (req, res) => {
 };
 exports.destroy = async (req, res) => {
   try {
-    const newSeller = await Seller.findByIdAndDelete(req.params.id, {
-      rawResult: true,
+    const newSeller = await Seller.findByIdAndUpdate(
+      req.params.id,
+      { isActive: false },
+      {
+        returnOriginal: false,
+        runValidators: true,
+      },
+    );
+
+    res.status(201).json({
+      status: 'success',
+      data: {
+        seller: newSeller,
+      },
     });
+  } catch (error) {
+    res.status(400).json({
+      message: error,
+    });
+  }
+};
+
+exports.destroyMany = async (req, res) => {
+  try {
+    const newSeller = await Seller.deleteMany();
 
     res.status(201).json({
       status: 'success',

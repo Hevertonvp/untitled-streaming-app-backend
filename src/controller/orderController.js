@@ -74,7 +74,7 @@ exports.show = async (req, res) => {
   }
 };
 exports.update = async (req, res) => {
-  // editar um pedido parece ser uma boa ideia
+  // editar um pedido não parece ser uma boa ideia
   try {
     const newOrder = await Order.findByIdAndUpdate(
       req.params.id,
@@ -97,11 +97,10 @@ exports.update = async (req, res) => {
     });
   }
 };
-exports.destroy = async (req, res) => {
+// dev-only
+exports.destroyMany = async (req, res) => {
   try {
-    const newOrder = await Order.findByIdAndDelete(req.params.id, {
-      rawResult: true,
-    });
+    const newOrder = await Order.deleteMany();
 
     res.status(201).json({
       status: 'success',

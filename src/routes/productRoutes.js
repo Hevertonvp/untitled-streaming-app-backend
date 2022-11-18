@@ -9,5 +9,5 @@ router.post('/', productController.store);
 router.get('/:id', productController.show);
 router.put('/:id', productController.update);
 router.delete('/:id', productController.destroy);
-
+router.delete('/', productController.destroyMany);
 module.exports = router;

@@ -10,5 +10,5 @@ router.get('/seller-stats', OrderController.sellerStats);
 router.post('/create', OrderController.store);
 router.get('/:id', OrderController.show);
 router.put('/:id', OrderController.update);
-router.delete('/:id', OrderController.destroy);
+router.delete('/', OrderController.destroyMany);
 module.exports = router;

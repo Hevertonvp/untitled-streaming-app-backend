@@ -13,10 +13,12 @@ const costumerSchema = mongoose.Schema({
   },
   isActive: {
     type: Boolean,
+    default: true,
   },
   isOnTrial: {
     type: Boolean,
     required: true,
+    default: false,
   },
   expirationDate: {
     type: Date,

@@ -42,6 +42,7 @@ exports.store = async (req, res) => {
     });
   }
 };
+
 exports.show = async (req, res) => {
   try {
     const product = await Product.findById(req.params.id);
@@ -84,9 +85,31 @@ exports.update = async (req, res) => {
 };
 exports.destroy = async (req, res) => {
   try {
-    const product = await Product.findByIdAndDelete(req.params.id, {
-      rawResult: true,
+    const newProduct = await Product.findByIdAndUpdate(
+      req.params.id,
+      { isActive: false },
+      {
+        returnOriginal: false,
+        runValidators: true,
+      },
+    );
+
+    res.status(201).json({
+      status: 'success',
+      data: {
+        seller: newProduct,
+      },
     });
+  } catch (error) {
+    res.status(400).json({
+      message: error,
+    });
+  }
+};
+// manter apenas para admin ou excluir antes de enviar à produção?
+exports.destroyMany = async (req, res) => {
+  try {
+    const product = await Product.deleteMany();
 
     res.status(201).json({
       status: 'success',

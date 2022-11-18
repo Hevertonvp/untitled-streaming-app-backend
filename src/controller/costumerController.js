@@ -86,9 +86,30 @@ exports.update = async (req, res) => {
 };
 exports.destroy = async (req, res) => {
   try {
-    const costumer = await Costumer.findByIdAndDelete(req.params.id, {
-      rawResult: true,
+    const newCostumer = await Costumer.findByIdAndUpdate(
+      req.params.id,
+      { isActive: false },
+      {
+        returnOriginal: false,
+        runValidators: true,
+      },
+    );
+
+    res.status(201).json({
+      status: 'success',
+      data: {
+        seller: newCostumer,
+      },
     });
+  } catch (error) {
+    res.status(400).json({
+      message: error,
+    });
+  }
+};
+exports.destroyMany = async (req, res) => {
+  try {
+    const costumer = await Costumer.deleteMany();
 
     res.status(201).json({
       status: 'success',

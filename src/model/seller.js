@@ -21,6 +21,7 @@ const sellerSchema = Schema({
   },
   isActive: {
     type: Boolean,
+    default: true,
   },
 });
 
