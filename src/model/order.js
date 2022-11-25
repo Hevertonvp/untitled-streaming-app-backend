@@ -3,7 +3,7 @@ const moment = require('moment');
 
 const { Schema } = mongoose;
 
-const OrderSchema = mongoose.Schema({
+const OrderSchema = new Schema({
   createdAt: {
     type: Date,
     required: true,
@@ -23,7 +23,6 @@ const OrderSchema = mongoose.Schema({
   }],
   orderPrice: {
     type: Number,
-    required: true,
   },
 });
 

@@ -1,7 +1,7 @@
 const mongoose = require('mongoose');
 
 const { Schema } = mongoose;
-const sellerSchema = Schema({
+const sellerSchema = new Schema({
   userName: {
     type: String,
     required: [true, 'must have a valid name'],

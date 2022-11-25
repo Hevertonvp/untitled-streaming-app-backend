@@ -4,7 +4,6 @@ const Product = require('../model/product');
 const APIfeatures = require('../utils/api-features');
 
 exports.index = async (req, res) => {
-  // ordem de preço
   const features = new APIfeatures(Product.find(), req.query)
     .filter()
     .sort()
@@ -50,7 +49,10 @@ exports.show = async (req, res) => {
     res.status(201).json({
       status: 'success',
       data: {
-        product,
+        $project: {
+          netRegisterPrice: 0,
+          __v: 0,
+        },
       },
     });
   } catch (error) {

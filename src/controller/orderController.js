@@ -1,3 +1,7 @@
+/* eslint-disable no-multi-assign */
+/* eslint-disable no-plusplus */
+/* eslint-disable no-return-assign */
+/* eslint-disable arrow-body-style */
 /* eslint-disable radix */
 /* eslint-disable quote-props */
 /* eslint-disable no-unused-vars */
@@ -5,6 +9,7 @@ const moment = require('moment');
 const Order = require('../model/order');
 const Seller = require('../model/seller');
 const Product = require('../model/product');
+const ItemProduct = require('../model/itemProduct');
 const Costumer = require('../model/costumer');
 
 const APIfeatures = require('../utils/api-features');
@@ -34,21 +39,34 @@ exports.index = async (req, res) => {
 
 exports.store = async (req, res) => {
   try {
-    const newOrder = await Order.create(req.body);
-    const dbSeller = await Seller.findById(req.body.seller);// funciona, mas é o correto?
-    const dbProduct = await Product.findById(req.body.products);
+    const dbSeller = await Seller.findById(req.body.seller);
     const dbCostumer = await Costumer.findById(req.body.costumer);
-    const minimumPrice = dbProduct.productPrice + (dbProduct.productPrice * (20 / 100));
+    const dbProducts = await ItemProduct.find(
+      {
+        '_id': { $in: req.body.products },
+        $where: { isAvailable: true },
+      },
+    );
+    console.log(dbProducts);
+    // if (!dbSeller || !dbCostumer || dbProducts.length !== req.body.products.length) {
+    //   throw new Error('verifique se o vendedor, o cliente ou produto existem no banco de dados');
+    // }
 
-    if (!dbSeller || !dbProduct || !dbCostumer) {
-      throw new Error('verifique se o vendedor, o cliente ou produto existem no banco de dados');
-    }
-    // business rule: a new order must have a minimum 20% value increase in all his products to...
-    // complain the service tax.
+    const floatPrice = dbProducts.map((item) => { return item.grossSellingPrice * 1; });
+
+    const newOrder = await Order.create(
+      {
+        ...req.body,
+        orderPrice: floatPrice.reduce((total, item) => {
+          return total + item;
+        }),
+      },
+    );
     res.status(201).json({
       status: 'success',
       data: {
         order: newOrder,
+
       },
     });
   } catch (e) {
@@ -65,30 +83,6 @@ exports.show = async (req, res) => {
       status: 'success',
       data: {
         newOrder,
-      },
-    });
-  } catch (error) {
-    res.status(400).json({
-      message: error,
-    });
-  }
-};
-exports.update = async (req, res) => {
-  // editar um pedido não parece ser uma boa ideia
-  try {
-    const newOrder = await Order.findByIdAndUpdate(
-      req.params.id,
-      req.body,
-      {
-        returnOriginal: false,
-        runValidators: true,
-      },
-    );
-
-    res.status(201).json({
-      status: 'success',
-      data: {
-        order: newOrder,
       },
     });
   } catch (error) {
@@ -116,7 +110,7 @@ exports.destroyMany = async (req, res) => {
 };
 
 exports.orderStats = async (req, res) => {
-  let range = moment().subtract(1, 'months'); // default
+  let range = moment().subtract(1, 'months'); // default results from last month
 
   if (req.query.range) {
     range = moment().subtract((req.query.range * 1 || 1), 'days');
@@ -144,7 +138,7 @@ exports.orderStats = async (req, res) => {
       {
         $match: { createdAt: { $gte: range.toDate() } },
       },
-      { $addFields: { orderValue: { $sum: '$products.price' } } },
+      { $addFields: { orderValue: { $sum: '$products.productPrice' } } }, // somar valor dos pedidos
       {
         $project: {
           createdAt: 1,
@@ -153,7 +147,7 @@ exports.orderStats = async (req, res) => {
           products: {
             id: 1,
             name: 1,
-            price: 1,
+            productPrice: 1,
             expirationDate: 1,
           },
         },

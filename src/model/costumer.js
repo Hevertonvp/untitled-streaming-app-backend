@@ -1,8 +1,9 @@
 const mongoose = require('mongoose');
+const moment = require('moment');
 
-// const { Schema } = mongoose;
+const { Schema } = mongoose;
 
-const costumerSchema = mongoose.Schema({
+const costumerSchema = new Schema({
   name: {
     type: String,
     required: true,
@@ -20,13 +21,13 @@ const costumerSchema = mongoose.Schema({
     required: true,
     default: false,
   },
-  expirationDate: {
-    type: Date,
-  },
-  // products: [{ type: Schema.Types.ObjectId, ref: 'Product' }], //it doens't need this, right?
   createdAt: {
     type: Date,
     default: Date.now(),
+  },
+  expirationDate: {
+    type: Date,
+    default: moment().add(1, 'year'), // for testing purposes
   },
 });
 
