@@ -12,10 +12,12 @@ const OrderSchema = new Schema({
   seller: {
     type: Schema.Types.ObjectId,
     ref: 'Seller',
+    required: true,
   },
   costumer: {
     type: Schema.Types.ObjectId,
     ref: 'Costumer',
+    required: true,
   },
   products: [{
     type: Schema.Types.ObjectId,
@@ -24,6 +26,11 @@ const OrderSchema = new Schema({
   orderPrice: {
     type: Number,
   },
+  itemProducts: [{
+    type: Schema.Types.ObjectId,
+    ref: 'itemProducts',
+    required: true,
+  }],
 });
 
 const Order = mongoose.model('Order', OrderSchema);

@@ -41,12 +41,10 @@ exports.store = async (req, res) => {
   try {
     const dbSeller = await Seller.findById(req.body.seller);
     const dbCostumer = await Costumer.findById(req.body.costumer);
-    const dbProducts = await ItemProduct.find(
-      {
-        '_id': { $in: req.body.products },
-        $where: { isAvailable: true },
-      },
-    );
+    const dbProducts = await ItemProduct.find();
+    if (dbProducts.length === 0) {
+      throw new Error('acabou o plano');
+    }
     console.log(dbProducts);
     // if (!dbSeller || !dbCostumer || dbProducts.length !== req.body.products.length) {
     //   throw new Error('verifique se o vendedor, o cliente ou produto existem no banco de dados');

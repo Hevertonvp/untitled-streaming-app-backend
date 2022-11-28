@@ -63,7 +63,6 @@ exports.show = async (req, res) => {
 };
 exports.update = async (req, res) => {
   try {
-    console.log(req.params.id);
     const product = await Product.findByIdAndUpdate(
       req.params.id,
       req.body,
@@ -108,7 +107,6 @@ exports.destroy = async (req, res) => {
     });
   }
 };
-// manter apenas para admin ou excluir antes de enviar à produção?
 exports.destroyMany = async (req, res) => {
   try {
     const product = await Product.deleteMany();
