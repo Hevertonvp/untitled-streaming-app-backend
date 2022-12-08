@@ -1,3 +1,5 @@
+/* eslint-disable padded-blocks */
+/* eslint-disable no-multiple-empty-lines */
 /* eslint-disable no-multi-assign */
 /* eslint-disable no-plusplus */
 /* eslint-disable no-return-assign */
@@ -38,26 +40,47 @@ exports.index = async (req, res) => {
 };
 
 exports.store = async (req, res) => {
+
   try {
+
+
+    const idProducts = req.body.products.map((item) => {
+      return item.product;
+
+    });
+
+
+
+    // separar arrays
     const dbSeller = await Seller.findById(req.body.seller);
     const dbCostumer = await Costumer.findById(req.body.costumer);
-    const dbProducts = await ItemProduct.find();
-    if (dbProducts.length === 0) {
-      throw new Error('acabou o plano');
-    }
-    console.log(dbProducts);
-    // if (!dbSeller || !dbCostumer || dbProducts.length !== req.body.products.length) {
-    //   throw new Error('verifique se o vendedor, o cliente ou produto existem no banco de dados');
-    // }
+    const dbItems = await ItemProduct.find(
+      {
+        $and: [
+          {
+            'product': { $in: idProducts },
+          },
+          {
+            isAvailable: { $eq: true },
+          },
+        ],
+      },
+    );
 
-    const floatPrice = dbProducts.map((item) => { return item.grossSellingPrice * 1; });
 
+    const tomy = dbItems.reduce((sum, item) => {
+      if (!sum[item.product]) {
+        sum[item.product] = [];
+      }
+      sum[item.product].push(item);
+      return sum;
+    }, {});
+
+    console.log(tomy);
     const newOrder = await Order.create(
       {
         ...req.body,
-        orderPrice: floatPrice.reduce((total, item) => {
-          return total + item;
-        }),
+        orderProducts: dbItems,
       },
     );
     res.status(201).json({
