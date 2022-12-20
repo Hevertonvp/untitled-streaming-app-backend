@@ -1,10 +1,10 @@
 /* eslint-disable no-unused-vars */
 const moment = require('moment-timezone');
-const Product = require('../model/product');
+const typeProduct = require('../model/typeProduct');
 const APIfeatures = require('../utils/api-features');
 
 exports.index = async (req, res) => {
-  const features = new APIfeatures(Product.find(), req.query)
+  const features = new APIfeatures(typeProduct.find(), req.query)
     .filter()
     .sort()
     .limit()
@@ -27,7 +27,7 @@ exports.index = async (req, res) => {
 };
 
 exports.store = async (req, res) => {
-  const product = await Product.create(req.body);
+  const product = await typeProduct.create(req.body);
   try {
     res.status(201).json({
       status: 'success',
@@ -44,7 +44,7 @@ exports.store = async (req, res) => {
 
 exports.show = async (req, res) => {
   try {
-    const product = await Product.findById(req.params.id);
+    const product = await typeProduct.findById(req.params.id);
 
     res.status(201).json({
       status: 'success',
@@ -63,7 +63,7 @@ exports.show = async (req, res) => {
 };
 exports.update = async (req, res) => {
   try {
-    const product = await Product.findByIdAndUpdate(
+    const product = await typeProduct.findByIdAndUpdate(
       req.params.id,
       req.body,
       {
@@ -86,7 +86,7 @@ exports.update = async (req, res) => {
 };
 exports.destroy = async (req, res) => {
   try {
-    const newProduct = await Product.findByIdAndUpdate(
+    const newProduct = await typeProduct.findByIdAndUpdate(
       req.params.id,
       { isActive: false },
       {
@@ -109,7 +109,7 @@ exports.destroy = async (req, res) => {
 };
 exports.destroyMany = async (req, res) => {
   try {
-    const product = await Product.deleteMany();
+    const product = await typeProduct.deleteMany();
 
     res.status(201).json({
       status: 'success',

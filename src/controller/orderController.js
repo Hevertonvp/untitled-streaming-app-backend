@@ -1,3 +1,4 @@
+/* eslint-disable no-underscore-dangle */
 /* eslint-disable padded-blocks */
 /* eslint-disable no-multiple-empty-lines */
 /* eslint-disable no-multi-assign */
@@ -10,7 +11,7 @@
 const moment = require('moment');
 const Order = require('../model/order');
 const Seller = require('../model/seller');
-const Product = require('../model/product');
+const typeProduct = require('../model/typeProduct');
 const ItemProduct = require('../model/itemProduct');
 const Costumer = require('../model/costumer');
 
@@ -43,51 +44,33 @@ exports.store = async (req, res) => {
 
   try {
 
-
-    const idProducts = req.body.products.map((item) => {
-      return item.product;
-
-    });
-
-
-
-    // separar arrays
     const dbSeller = await Seller.findById(req.body.seller);
     const dbCostumer = await Costumer.findById(req.body.costumer);
-    const dbItems = await ItemProduct.find(
+
+    const dbItemProducts = await ItemProduct.find(
       {
         $and: [
           {
-            'product': { $in: idProducts },
+            'typeProduct': req.body.typeProduct.typeProductId,
           },
           {
             isAvailable: { $eq: true },
           },
         ],
       },
-    );
+    ).limit(req.body.typeProduct.qty);
 
-
-    const tomy = dbItems.reduce((sum, item) => {
-      if (!sum[item.product]) {
-        sum[item.product] = [];
-      }
-      sum[item.product].push(item);
-      return sum;
-    }, {});
-
-    console.log(tomy);
+    console.log(dbItemProducts);
     const newOrder = await Order.create(
       {
         ...req.body,
-        orderProducts: dbItems,
+        status: 'created',
       },
     );
     res.status(201).json({
       status: 'success',
       data: {
         order: newOrder,
-
       },
     });
   } catch (e) {

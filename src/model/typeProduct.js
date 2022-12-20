@@ -2,7 +2,7 @@ const mongoose = require('mongoose');
 
 const { Schema } = mongoose;
 
-const productSchema = new Schema({
+const typeProductSchema = new Schema({
   itemProduct: { // count de disponiveis e indisponíveis
     type: Schema.Types.ObjectId,
     ref: 'ItemProduct',
@@ -25,6 +25,6 @@ const productSchema = new Schema({
 
 });
 
-const Product = mongoose.model('Product', productSchema);
+const Product = mongoose.model('typeProduct', typeProductSchema);
 
 module.exports = Product;

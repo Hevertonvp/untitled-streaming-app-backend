@@ -19,16 +19,21 @@ const OrderSchema = new Schema({
     ref: 'Costumer',
     required: true,
   },
-  products: [{
-    product: { type: Schema.Types.ObjectId, ref: 'Product' },
+  product: {
+    typeProductId: { type: Schema.Types.ObjectId, ref: 'typeProduct' },
     qty: { type: Number, default: 1 },
-  }],
+  },
   orderPrice: {
     type: Number,
   },
   orderProducts: [{
     type: Object,
   }],
+  status: {
+    type: String,
+    enum: ['pending', 'created', 'success', 'canceled'],
+    default: 'pending',
+  },
 });
 
 const Order = mongoose.model('Order', OrderSchema);

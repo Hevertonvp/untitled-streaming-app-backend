@@ -33,7 +33,22 @@ exports.index = async (req, res) => {
     });
   }
 };
+exports.destroyMany = async (req, res) => {
+  try {
+    const newOrder = await ItemProduct.deleteMany();
 
+    res.status(201).json({
+      status: 'success',
+      data: {
+        order: newOrder,
+      },
+    });
+  } catch (error) {
+    res.status(400).json({
+      message: error,
+    });
+  }
+};
 exports.itemStats = async (req, res) => {
   try {
     const data = await ItemProduct.aggregate([
