@@ -1,3 +1,7 @@
+/* eslint-disable no-await-in-loop */
+/* eslint-disable no-inner-declarations */
+/* eslint-disable guard-for-in */
+/* eslint-disable no-restricted-syntax */
 /* eslint-disable no-underscore-dangle */
 /* eslint-disable padded-blocks */
 /* eslint-disable no-multiple-empty-lines */
@@ -43,39 +47,80 @@ exports.index = async (req, res) => {
 exports.store = async (req, res) => {
 
   try {
+    const sellerExists = await Seller.findById(req.body.seller);
+    if (!sellerExists) {
+      throw new Error('vendedor não encontrado');
+    }
+    const costumerExists = await Costumer.findById(req.body.costumer);
+    if (!costumerExists) {
+      throw new Error('cliente não encontrado');
+    }
+    const handleItemProducts = async () => {
+      const products = [];
 
-    const dbSeller = await Seller.findById(req.body.seller);
-    const dbCostumer = await Costumer.findById(req.body.costumer);
-
-    const dbItemProducts = await ItemProduct.find(
-      {
-        $and: [
+      for (let i = 0; i < req.body.typeProducts.length; i++) {
+        const item = await ItemProduct.find(
           {
-            'typeProduct': req.body.typeProduct.typeProductId,
+            $and: [
+              {
+                'typeProduct': { $in: req.body.typeProducts[i].typeProductId },
+              },
+              {
+                'isAvailable': { $eq: true },
+              },
+            ],
           },
-          {
-            isAvailable: { $eq: true },
-          },
-        ],
-      },
-    ).limit(req.body.typeProduct.qty);
+        ).limit(req.body.typeProducts[i].qty);
 
-    console.log(dbItemProducts);
+        if (!item || item.length < req.body.typeProducts[i].qty) {
+          throw new Error('verifique a quantidade de produtos no estoque');
+        } else {
+          products.push(...item); // change isAvailable
+        }
+      }
+      return products;
+    };
+
+    const handleOrderPrice = async () => {
+      const values = [];
+      for (let i = 0; i < req.body.typeProducts.length; i++) {
+        const item = await typeProduct.findById(
+          req.body.typeProducts[i].typeProductId,
+        );
+        if (!item) {
+          throw new Error('verifique se o tipo do produto foi cadastrado');
+        }
+        if (req.body.typeProducts[i].grossSellingPrice < (item.netRegisterPrice * 1.3)) {
+          throw new Error('o valor de cada um dos produtos deve receber 30% de taxa de serviço'); // quantidade
+        } else {
+          values.push(req.body.typeProducts[i].grossSellingPrice
+            * req.body.typeProducts[i].qty);
+        }
+      }
+      return values.reduce((sum, curr) => {
+        return sum + curr;
+      }, 0);
+    };
+
     const newOrder = await Order.create(
       {
-        ...req.body,
-        status: 'created',
+        sellerId: req.body.seller,
+        costumerId: req.body.costumer,
+        itemProducts: await handleItemProducts(),
+        orderPrice: await handleOrderPrice(),
+        typeProducts: req.body.typeProducts,
       },
+
     );
     res.status(201).json({
       status: 'success',
       data: {
-        order: newOrder,
+        newOrder,
       },
     });
   } catch (e) {
     res.status(400).json({
-      message: `por favor, verifique o erro: ${e}`,
+      message: `${e}`,
     });
   }
 };
@@ -112,7 +157,8 @@ exports.destroyMany = async (req, res) => {
     });
   }
 };
-
+// $dateToString: { format: '%Y-%m-%d', date: '$createdAt'
+// https://www.mongodb.com/docs/manual/reference/operator/aggregation/sum/
 exports.orderStats = async (req, res) => {
   let range = moment().subtract(1, 'months'); // default results from last month
 
@@ -125,38 +171,26 @@ exports.orderStats = async (req, res) => {
       {
         $lookup: {
           from: 'sellers',
-          localField: 'seller',
+          localField: 'sellerId',
           foreignField: '_id',
           as: 'seller',
         },
       },
       {
-        $lookup: {
-          from: 'products',
-          localField: 'products',
-          foreignField: '_id',
-          as: 'products',
-        },
-
-      },
-      {
         $match: { createdAt: { $gte: range.toDate() } },
       },
-      { $addFields: { orderValue: { $sum: '$products.productPrice' } } }, // somar valor dos pedidos
+      { $addFields: { totalAmount: { $sum: '$orderPrice' } } }, // somar valor dos pedidos
       {
         $project: {
           createdAt: 1,
-          orderValue: 1,
+          totalAmount: 1,
           seller: { userName: 1, _id: 1 },
-          products: {
-            id: 1,
-            name: 1,
-            productPrice: 1,
-            expirationDate: 1,
+          itemProducts: {
+            _id: 1,
+            createdAt: 1,
           },
         },
       },
-
       {
         $sort: {
           createdAt: -1,

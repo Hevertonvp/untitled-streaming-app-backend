@@ -14,15 +14,14 @@ const typeProductSchema = new Schema({
   image: {
     type: String, // url
   },
+  netRegisterPrice: { // ADM = não será exibido, apenas informativo
+    type: Number,
+    default: 0,
+  },
   grossSellingPrice: { // valor revenda tve
     type: Number,
-    required: true,
+    default: 0,
   },
-  netRegisterPrice: { // não será exibido, apenas informativo
-    type: Number,
-    required: true,
-  },
-
 });
 
 const Product = mongoose.model('typeProduct', typeProductSchema);

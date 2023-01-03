@@ -3,7 +3,7 @@ const mongoose = require('mongoose');
 const { Schema } = mongoose;
 
 const itemProductSchema = new Schema({
-  typeProduct: {
+  typeProductId: {
     type: Schema.Types.ObjectId,
     ref: 'typeProduct',
     required: true,
@@ -24,6 +24,7 @@ const itemProductSchema = new Schema({
     type: Boolean,
     default: true,
   },
+
 });
 const ItemProduct = mongoose.model('ItemProduct', itemProductSchema);
 module.exports = ItemProduct;

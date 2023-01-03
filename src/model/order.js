@@ -9,26 +9,27 @@ const OrderSchema = new Schema({
     required: true,
     default: moment().toDate(),
   },
-  seller: {
+  sellerId: {
     type: Schema.Types.ObjectId,
     ref: 'Seller',
     required: true,
   },
-  costumer: {
+  costumerId: {
     type: Schema.Types.ObjectId,
     ref: 'Costumer',
     required: true,
   },
-  product: {
+  typeProducts: [{
     typeProductId: { type: Schema.Types.ObjectId, ref: 'typeProduct' },
     qty: { type: Number, default: 1 },
-  },
-  orderPrice: {
-    type: Number,
-  },
-  orderProducts: [{
+  }],
+  itemProducts: [{
     type: Object,
   }],
+  orderPrice: {
+    type: Number,
+    default: 0,
+  },
   status: {
     type: String,
     enum: ['pending', 'created', 'success', 'canceled'],

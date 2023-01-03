@@ -4,7 +4,8 @@
   "description": "",
   "main": "src/app.js",
   "scripts": {
-    "start": "nodemon start src/server.js"
+    "start": "nodemon start src/server.js",
+    "debug":"ndb src/server.js"
   },
   "keywords": [],
   "author": "",
@@ -20,6 +21,7 @@
     "express": "^4.18.1",
     "moment": "^2.29.4",
     "moment-timezone": "^0.5.37",
-    "mongoose": "^6.6.1"
+    "mongoose": "^6.6.1",
+    "ndb": "^1.1.5"
   }
 }
