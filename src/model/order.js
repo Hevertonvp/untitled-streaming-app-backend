@@ -9,12 +9,12 @@ const OrderSchema = new Schema({
     required: true,
     default: moment().toDate(),
   },
-  sellerId: {
+  seller: {
     type: Schema.Types.ObjectId,
     ref: 'Seller',
     required: true,
   },
-  costumerId: {
+  costumer: {
     type: Schema.Types.ObjectId,
     ref: 'Costumer',
     required: true,
@@ -23,9 +23,11 @@ const OrderSchema = new Schema({
     typeProductId: { type: Schema.Types.ObjectId, ref: 'typeProduct' },
     qty: { type: Number, default: 1 },
   }],
+  // alterar para objeto
   itemProducts: [{
     type: Object,
   }],
+  // alterar para chave estrangeira  dado inútil?
   orderPrice: {
     type: Number,
     default: 0,

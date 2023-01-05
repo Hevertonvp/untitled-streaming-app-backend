@@ -23,18 +23,30 @@ const APIfeatures = require('../utils/api-features');
 
 exports.index = async (req, res) => {
   try {
-    const features = new APIfeatures(Order.find(), req.query)
+    const features = new APIfeatures(
+      Order.find(
+        {},
+        {
+          'itemProducts': 0,
+          'typeProducts': 0,
+        },
+      )
+        .populate([
+          { path: 'costumer', select: 'name' },
+          { path: 'seller', select: 'userName' }]),
+      req.query,
+    )
       .filter()
       .sort()
       .limit()
       .paginate();
-    const newOrder = await features.query;
+
+    const orders = await features.query;
+    console.log(orders);
     res.status(201).json({
       status: 'success',
-      results: newOrder.length,
-      data: {
-        order: newOrder,
-      },
+      results: orders.length,
+      orders,
     });
   } catch (error) {
     res.status(400).json({
@@ -63,7 +75,7 @@ exports.store = async (req, res) => {
           {
             $and: [
               {
-                'typeProduct': { $in: req.body.typeProducts[i].typeProductId },
+                'typeProductId': { $in: req.body.typeProducts[i].typeProductId },
               },
               {
                 'isAvailable': { $eq: true },
@@ -75,7 +87,8 @@ exports.store = async (req, res) => {
         if (!item || item.length < req.body.typeProducts[i].qty) {
           throw new Error('verifique a quantidade de produtos no estoque');
         } else {
-          products.push(...item); // change isAvailable
+          products.push(...item);
+          // make sure to push it spreadable our total individual item count will fail!
         }
       }
       return products;
@@ -104,8 +117,8 @@ exports.store = async (req, res) => {
 
     const newOrder = await Order.create(
       {
-        sellerId: req.body.seller,
-        costumerId: req.body.costumer,
+        seller: req.body.seller,
+        costumer: req.body.costumer,
         itemProducts: await handleItemProducts(),
         orderPrice: await handleOrderPrice(),
         typeProducts: req.body.typeProducts,
@@ -114,8 +127,12 @@ exports.store = async (req, res) => {
     );
     res.status(201).json({
       status: 'success',
-      data: {
-        newOrder,
+      order: {
+        date: newOrder.createdAt,
+        orderStatus: newOrder.status,
+        sellerId: newOrder.seller,
+        costumerId: newOrder.costumer,
+        totalItems: newOrder.itemProducts.length,
       },
     });
   } catch (e) {
@@ -161,36 +178,35 @@ exports.destroyMany = async (req, res) => {
 // https://www.mongodb.com/docs/manual/reference/operator/aggregation/sum/
 exports.orderStats = async (req, res) => {
   let range = moment().subtract(1, 'months'); // default results from last month
-
+  // adicionar media de venda
   if (req.query.range) {
     range = moment().subtract((req.query.range * 1 || 1), 'days');
   }
   try {
     const stats = await Order.aggregate([
-
-      {
-        $lookup: {
-          from: 'sellers',
-          localField: 'sellerId',
-          foreignField: '_id',
-          as: 'seller',
-        },
-      },
       {
         $match: { createdAt: { $gte: range.toDate() } },
       },
-      { $addFields: { totalAmount: { $sum: '$orderPrice' } } }, // somar valor dos pedidos
       {
-        $project: {
-          createdAt: 1,
-          totalAmount: 1,
-          seller: { userName: 1, _id: 1 },
-          itemProducts: {
-            _id: 1,
-            createdAt: 1,
-          },
+
+        $group: {
+          _id: null,
+          count: { $count: { } },
+          sellsAmount: { $sum: '$orderPrice' },
         },
+
       },
+      // {
+      //   $lookup: {
+      //     from: 'typeProducts',
+      //     localField: 'typeProducts',
+      //     foreignField: '_id',
+      //     as: 'products',
+      //   },
+      // },
+
+
+      // { $addFields: { totalAmount: { $sum: '$orderPrice' } } }, // somar valor dos pedidos
       {
         $sort: {
           createdAt: -1,
