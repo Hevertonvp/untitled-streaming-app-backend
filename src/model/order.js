@@ -22,6 +22,7 @@ const OrderSchema = new Schema({
   typeProducts: [{
     typeProductId: { type: Schema.Types.ObjectId, ref: 'typeProduct' },
     qty: { type: Number, default: 1 },
+    grossSellingPrice: { type: Number, default: 0 },
   }],
   // alterar para objeto
   itemProducts: [{

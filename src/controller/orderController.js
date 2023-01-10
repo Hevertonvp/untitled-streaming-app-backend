@@ -28,7 +28,7 @@ exports.index = async (req, res) => {
         {},
         {
           'itemProducts': 0,
-          'typeProducts': 0,
+          // 'typeProducts': 0,
         },
       )
         .populate([
@@ -114,14 +114,18 @@ exports.store = async (req, res) => {
         return sum + curr;
       }, 0);
     };
+    const handleTypeProducts = () => {
 
+    };
     const newOrder = await Order.create(
       {
         seller: req.body.seller,
         costumer: req.body.costumer,
         itemProducts: await handleItemProducts(),
         orderPrice: await handleOrderPrice(),
-        typeProducts: req.body.typeProducts,
+        typeProducts: [{}],
+
+        // array de objetos, ids e quantidade
       },
 
     );
@@ -177,41 +181,48 @@ exports.destroyMany = async (req, res) => {
 // $dateToString: { format: '%Y-%m-%d', date: '$createdAt'
 // https://www.mongodb.com/docs/manual/reference/operator/aggregation/sum/
 exports.orderStats = async (req, res) => {
-  let range = moment().subtract(1, 'months'); // default results from last month
-  // adicionar media de venda
-  if (req.query.range) {
-    range = moment().subtract((req.query.range * 1 || 1), 'days');
-  }
+  // let range = moment().subtract(1, 'months'); // default results from last month
+  // // adicionar media de venda
+  // if (req.query.range) {
+  //   range = moment().subtract((req.query.range * 1 || 1), 'days');
+  // }
   try {
     const stats = await Order.aggregate([
+
+
       {
-        $match: { createdAt: { $gte: range.toDate() } },
+        $unwind: {
+          path: '$typeProducts',
+        },
       },
       {
-
-        $group: {
-          _id: null,
-          count: { $count: { } },
-          sellsAmount: { $sum: '$orderPrice' },
+        $lookup: {
+          from: 'typeProducts',
+          localField: 'typeProducts.typeProductId', // ids
+          foreignField: '_id',
+          as: 'typeProducts.typeProduct',
         },
-
       },
       // {
-      //   $lookup: {
-      //     from: 'typeProducts',
-      //     localField: 'typeProducts',
-      //     foreignField: '_id',
-      //     as: 'products',
+      //   $project: {
+      //     tony: 1,
       //   },
       // },
+      // {
 
+      //   $group: {
+      //     _id: null,
+      //     count: { $count: { } },
+      //     sellsAmount: { $sum: '$orderPrice' }, // testar amanha mudando o range da data
+      //   },
 
+      // },
       // { $addFields: { totalAmount: { $sum: '$orderPrice' } } }, // somar valor dos pedidos
-      {
-        $sort: {
-          createdAt: -1,
-        },
-      },
+      // {
+      //   $sort: {
+      //     createdAt: -1,
+      //   },
+      // },
     ]);
     res.status(201).json({
       status: 'success',
