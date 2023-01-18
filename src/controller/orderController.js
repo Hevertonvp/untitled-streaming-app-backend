@@ -23,12 +23,13 @@ const APIfeatures = require('../utils/api-features');
 
 exports.index = async (req, res) => {
   try {
+
     const features = new APIfeatures(
       Order.find(
         {},
         {
-          'itemProducts': 0,
-          // 'typeProducts': 0,
+          // 'itemProducts': 0,
+          'typeProducts': 0,
         },
       )
         .populate([
@@ -42,7 +43,7 @@ exports.index = async (req, res) => {
       .paginate();
 
     const orders = await features.query;
-    console.log(orders);
+
     res.status(201).json({
       status: 'success',
       results: orders.length,
@@ -68,7 +69,7 @@ exports.store = async (req, res) => {
       throw new Error('cliente não encontrado');
     }
     const handleItemProducts = async () => {
-      const products = [];
+      const itemProducts = [];
 
       for (let i = 0; i < req.body.typeProducts.length; i++) {
         const item = await ItemProduct.find(
@@ -87,56 +88,94 @@ exports.store = async (req, res) => {
         if (!item || item.length < req.body.typeProducts[i].qty) {
           throw new Error('verifique a quantidade de produtos no estoque');
         } else {
-          products.push(...item);
-          // make sure to push it spreadable our total individual item count will fail!
+          itemProducts.push(...item);
+          // make sure to spread the array our total individual item count will fail!
         }
       }
-      return products;
+      return itemProducts;
     };
+    const itemProducts = await handleItemProducts();
 
-    const handleOrderPrice = async () => {
-      const values = [];
+    const handleOrderAmount = async () => {
+      const grossProductValues = [];
+      const accServiceFee = [];
+      const netProductValues = [];
+
       for (let i = 0; i < req.body.typeProducts.length; i++) {
-        const item = await typeProduct.findById(
-          req.body.typeProducts[i].typeProductId,
-        );
+        const item = await typeProduct.findOne({ _id: req.body.typeProducts[i].typeProductId });
         if (!item) {
           throw new Error('verifique se o tipo do produto foi cadastrado');
         }
-        if (req.body.typeProducts[i].grossSellingPrice < (item.netRegisterPrice * 1.3)) {
-          throw new Error('o valor de cada um dos produtos deve receber 30% de taxa de serviço'); // quantidade
+        const minimumValue = item.registrationPrice + (item.serviceFee * 120);
+
+        if (req.body.typeProducts[i].grossSellingPrice
+          < minimumValue) {
+          throw new Error(
+            'o valor de cada um dos produtos deve receber o a taxa de serviço',
+          );
         } else {
-          values.push(req.body.typeProducts[i].grossSellingPrice
-            * req.body.typeProducts[i].qty);
+          accServiceFee.push(
+            (req.body.typeProducts[i].grossSellingPrice
+              * item.serviceFee)
+            * req.body.typeProducts[i].qty,
+          );
+          grossProductValues.push(req.body.typeProducts[i].grossSellingPrice
+             * req.body.typeProducts[i].qty);
+          netProductValues.push((item.registrationPrice
+            * req.body.typeProducts[i].qty));
         }
       }
-      return values.reduce((sum, curr) => {
-        return sum + curr;
-      }, 0);
-    };
-    const handleTypeProducts = () => {
+      return {
+        grossValue: grossProductValues.reduce((crr, acc) => {
+          return crr + acc;
+        }),
+        netValue: netProductValues.reduce((crr, acc) => {
+          return crr + acc;
+        }),
+        admProfit: accServiceFee.reduce((crr, acc) => {
+          return crr + acc;
+        }),
 
+      };
     };
+    const {
+      grossValue,
+      netValue,
+      admProfit,
+    } = await handleOrderAmount();
+
+    console.log(await handleOrderAmount());
+
     const newOrder = await Order.create(
       {
         seller: req.body.seller,
         costumer: req.body.costumer,
-        itemProducts: await handleItemProducts(),
-        orderPrice: await handleOrderPrice(),
-        typeProducts: [{}],
-
-        // array de objetos, ids e quantidade
+        itemProducts,
+        orderAmount: {
+          grossValue,
+          sellerProfit: grossValue - (netValue + admProfit),
+          admProfit,
+        },
+        typeProducts: req.body.typeProducts,
       },
-
     );
+
+    const {
+      createdAt,
+      status,
+      seller,
+      costumer,
+      orderAmount,
+    } = newOrder;
+
     res.status(201).json({
       status: 'success',
       order: {
-        date: newOrder.createdAt,
-        orderStatus: newOrder.status,
-        sellerId: newOrder.seller,
-        costumerId: newOrder.costumer,
-        totalItems: newOrder.itemProducts.length,
+        createdAt,
+        status,
+        seller,
+        costumer,
+        orderAmount,
       },
     });
   } catch (e) {
@@ -181,49 +220,47 @@ exports.destroyMany = async (req, res) => {
 // $dateToString: { format: '%Y-%m-%d', date: '$createdAt'
 // https://www.mongodb.com/docs/manual/reference/operator/aggregation/sum/
 exports.orderStats = async (req, res) => {
-  // let range = moment().subtract(1, 'months'); // default results from last month
-  // // adicionar media de venda
-  // if (req.query.range) {
-  //   range = moment().subtract((req.query.range * 1 || 1), 'days');
-  // }
+  let initialDate = moment().subtract(1, 'months'); // default
+
+  if (req.query.range) {
+    initialDate = moment().subtract((req.query.initialDate * 1 || 1), 'days');
+  }
   try {
     const stats = await Order.aggregate([
 
-
-      {
-        $unwind: {
-          path: '$typeProducts',
-        },
-      },
       {
         $lookup: {
-          from: 'typeProducts',
-          localField: 'typeProducts.typeProductId', // ids
+          from: 'typeproducts',
+          localField: 'itemProducts.typeProductId',
           foreignField: '_id',
-          as: 'typeProducts.typeProduct',
+          as: 'ordered_products',
         },
       },
-      // {
-      //   $project: {
-      //     tony: 1,
-      //   },
-      // },
-      // {
+      {
+        $match: { createdAt: { $gte: initialDate.toDate() } },
+      },
 
+      // {
       //   $group: {
       //     _id: null,
-      //     count: { $count: { } },
-      //     sellsAmount: { $sum: '$orderPrice' }, // testar amanha mudando o range da data
+      //     totalOrders: { $sum: 1 },
+      //     grossAmount: { $sum: '$orderPrice' },
+      //     netAmount: { $sum: '$typeProducts.grossSellingPrice' },
       //   },
-
       // },
-      // { $addFields: { totalAmount: { $sum: '$orderPrice' } } }, // somar valor dos pedidos
+      // {
+      //   $match: { createdAt: { $gte: initialDate.toDate() } },
+      // },
+
       // {
       //   $sort: {
       //     createdAt: -1,
       //   },
       // },
+
     ]);
+
+
     res.status(201).json({
       status: 'success',
       results: stats.length,
@@ -235,7 +272,7 @@ exports.orderStats = async (req, res) => {
     });
   }
 };
-// e se o cara não tiver vendas?
+
 exports.sellerStats = async (req, res) => {
   // the date range was defined in the request query
   try {

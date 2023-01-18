@@ -5,7 +5,7 @@ const { Schema } = mongoose;
 const itemProductSchema = new Schema({
   typeProductId: {
     type: Schema.Types.ObjectId,
-    ref: 'typeProduct',
+    ref: 'TypeProduct',
     required: true,
   },
   code: {

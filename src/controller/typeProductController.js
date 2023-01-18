@@ -50,7 +50,7 @@ exports.show = async (req, res) => {
       status: 'success',
       data: {
         $project: {
-          netRegisterPrice: 0,
+          registrationPrice: 0,
           __v: 0,
         },
       },

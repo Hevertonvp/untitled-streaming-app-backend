@@ -14,16 +14,16 @@ const typeProductSchema = new Schema({
   image: {
     type: String, // url
   },
-  netRegisterPrice: { // ADM = não será exibido, apenas informativo
+  registrationPrice: { // ADM = não será exibido, apenas informativo
     type: Number,
     default: 0,
   },
-  grossSellingPrice: { // valor revenda tve
+  serviceFee: { // valor revenda tve
     type: Number,
-    default: 0,
+    default: 0.15,
   },
 });
 
-const Product = mongoose.model('typeProduct', typeProductSchema);
+const Product = mongoose.model('TypeProduct', typeProductSchema);
 
 module.exports = Product;

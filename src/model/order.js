@@ -20,18 +20,30 @@ const OrderSchema = new Schema({
     required: true,
   },
   typeProducts: [{
-    typeProductId: { type: Schema.Types.ObjectId, ref: 'typeProduct' },
+    typeProductId: {
+      type: Schema.Types.ObjectId,
+      ref: 'TypeProduct',
+      required: true,
+    },
     qty: { type: Number, default: 1 },
     grossSellingPrice: { type: Number, default: 0 },
   }],
-  // alterar para objeto
   itemProducts: [{
-    type: Object,
+    typeProductId: {
+      type: Schema.Types.ObjectId,
+      ref: 'ItemProduct',
+    },
   }],
-  // alterar para chave estrangeira  dado inútil?
-  orderPrice: {
-    type: Number,
-    default: 0,
+  orderAmount: {
+    grossValue: {
+      type: Number, default: 0,
+    },
+    sellerProfit: {
+      type: Number, default: 0,
+    },
+    admProfit: {
+      type: Number, default: 0,
+    },
   },
   status: {
     type: String,
