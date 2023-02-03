@@ -1,18 +1,3 @@
-/* eslint-disable max-len */
-/* eslint-disable no-await-in-loop */
-/* eslint-disable no-inner-declarations */
-/* eslint-disable guard-for-in */
-/* eslint-disable no-restricted-syntax */
-/* eslint-disable no-underscore-dangle */
-/* eslint-disable padded-blocks */
-/* eslint-disable no-multiple-empty-lines */
-/* eslint-disable no-multi-assign */
-/* eslint-disable no-plusplus */
-/* eslint-disable no-return-assign */
-/* eslint-disable arrow-body-style */
-/* eslint-disable radix */
-/* eslint-disable quote-props */
-/* eslint-disable no-unused-vars */
 const moment = require('moment');
 const Order = require('../model/order');
 const Seller = require('../model/seller');
@@ -24,13 +9,12 @@ const APIfeatures = require('../utils/api-features');
 
 exports.index = async (req, res) => {
   try {
-
     const features = new APIfeatures(
       Order.find(
         {},
         {
-          'itemProducts': 0,
-          'typeProducts': 0,
+          itemProducts: 0,
+          typeProducts: 0,
         },
       )
         .populate([
@@ -59,7 +43,6 @@ exports.index = async (req, res) => {
 };
 
 exports.store = async (req, res) => {
-
   try {
     const sellerExists = await Seller.findById(req.body.seller);
     if (!sellerExists) {
@@ -77,10 +60,10 @@ exports.store = async (req, res) => {
           {
             $and: [
               {
-                'typeProductId': { $in: req.body.typeProducts[i].typeProductId },
+                typeProductId: { $in: req.body.typeProducts[i].typeProductId },
               },
               {
-                'isAvailable': { $eq: true },
+                isAvailable: { $eq: true },
               },
             ],
           },
@@ -90,7 +73,6 @@ exports.store = async (req, res) => {
           throw new Error('verifique a quantidade de produtos no estoque');
         } else {
           itemProducts.push(...item);
-          // make sure to spread the array our total individual item count will fail!
         }
       }
       return itemProducts;
@@ -103,7 +85,9 @@ exports.store = async (req, res) => {
       const netProductValues = [];
 
       for (let i = 0; i < req.body.typeProducts.length; i++) {
-        const item = await typeProduct.findOne({ _id: req.body.typeProducts[i].typeProductId });
+        const item = await typeProduct.findOne({
+          _id: req.body.typeProducts[i].typeProductId,
+        });
         if (!item) {
           throw new Error('verifique se o tipo do produto foi cadastrado');
         }
@@ -127,24 +111,18 @@ exports.store = async (req, res) => {
         }
       }
       return {
-        grossValue: grossProductValues.reduce((crr, acc) => {
-          return (crr + acc);
-        }),
-        netValue: netProductValues.reduce((crr, acc) => {
-          return (crr + acc);
-        }),
-        admProfit: accServiceFee.reduce((crr, acc) => {
-          return (crr + acc);
-        }),
+        grossValue: grossProductValues.reduce((crr, acc) => (crr + acc)),
+        netValue: netProductValues.reduce((crr, acc) => (crr + acc)),
+        admProfit: accServiceFee.reduce((crr, acc) => (crr + acc)),
 
       };
     };
+
     const {
       grossValue,
       netValue,
       admProfit,
     } = await handleOrderAmount();
-
 
     const newOrder = await Order.create(
       {
@@ -199,7 +177,6 @@ exports.show = async (req, res) => {
     });
   }
 };
-// dev-only
 exports.destroyMany = async (req, res) => {
   try {
     const newOrder = await Order.deleteMany();
@@ -305,7 +282,7 @@ exports.sellersStats = async (req, res) => {
       },
       {
         $sort: {
-          'createdAt': 1,
+          createdAt: 1,
         },
       },
     ]);
