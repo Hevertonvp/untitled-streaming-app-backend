@@ -1,3 +1,4 @@
+/* eslint-disable max-len */
 /* eslint-disable no-await-in-loop */
 /* eslint-disable no-inner-declarations */
 /* eslint-disable guard-for-in */
@@ -28,7 +29,7 @@ exports.index = async (req, res) => {
       Order.find(
         {},
         {
-          // 'itemProducts': 0,
+          'itemProducts': 0,
           'typeProducts': 0,
         },
       )
@@ -127,13 +128,13 @@ exports.store = async (req, res) => {
       }
       return {
         grossValue: grossProductValues.reduce((crr, acc) => {
-          return crr + acc;
+          return (crr + acc);
         }),
         netValue: netProductValues.reduce((crr, acc) => {
-          return crr + acc;
+          return (crr + acc);
         }),
         admProfit: accServiceFee.reduce((crr, acc) => {
-          return crr + acc;
+          return (crr + acc);
         }),
 
       };
@@ -144,7 +145,6 @@ exports.store = async (req, res) => {
       admProfit,
     } = await handleOrderAmount();
 
-    console.log(await handleOrderAmount());
 
     const newOrder = await Order.create(
       {
@@ -153,13 +153,12 @@ exports.store = async (req, res) => {
         itemProducts,
         orderAmount: {
           grossValue,
-          sellerProfit: grossValue - (netValue + admProfit),
+          sellerProfit: (grossValue - (netValue + admProfit)),
           admProfit,
         },
         typeProducts: req.body.typeProducts,
       },
     );
-
     const {
       createdAt,
       status,
@@ -217,9 +216,8 @@ exports.destroyMany = async (req, res) => {
     });
   }
 };
-// $dateToString: { format: '%Y-%m-%d', date: '$createdAt'
-// https://www.mongodb.com/docs/manual/reference/operator/aggregation/sum/
-exports.orderStats = async (req, res) => {
+
+exports.salesStats = async (req, res) => {
   let initialDate = moment().subtract(1, 'months'); // default
 
   if (req.query.range) {
@@ -227,44 +225,30 @@ exports.orderStats = async (req, res) => {
   }
   try {
     const stats = await Order.aggregate([
-
-      {
-        $lookup: {
-          from: 'typeproducts',
-          localField: 'itemProducts.typeProductId',
-          foreignField: '_id',
-          as: 'ordered_products',
-        },
-      },
       {
         $match: { createdAt: { $gte: initialDate.toDate() } },
       },
-
-      // {
-      //   $group: {
-      //     _id: null,
-      //     totalOrders: { $sum: 1 },
-      //     grossAmount: { $sum: '$orderPrice' },
-      //     netAmount: { $sum: '$typeProducts.grossSellingPrice' },
-      //   },
-      // },
-      // {
-      //   $match: { createdAt: { $gte: initialDate.toDate() } },
-      // },
-
-      // {
-      //   $sort: {
-      //     createdAt: -1,
-      //   },
-      // },
+      {
+        $group: {
+          _id: null,
+          totalSells: { $sum: 1 },
+          success: { $sum: { $cond: [{ $eq: ['$status', 'success'] }, 1, 0] } },
+          pending: { $sum: { $cond: [{ $eq: ['$status', 'pending'] }, 1, 0] } },
+          canceled: { $sum: { $cond: [{ $eq: ['$status', 'canceled'] }, 1, 0] } },
+          totalGrossAmount: { $sum: { $round: ['$orderAmount.grossValue', 2] } },
+          totalAdmProfit: { $sum: { $round: ['$orderAmount.admProfit', 2] } },
+        },
+      },
+      {
+        $project: {
+          _id: 0,
+        },
+      },
 
     ]);
-
-
     res.status(201).json({
       status: 'success',
-      results: stats.length,
-      orders: stats,
+      salesStatsByPeriod: stats,
     });
   } catch (error) {
     res.status(400).json({
@@ -273,48 +257,125 @@ exports.orderStats = async (req, res) => {
   }
 };
 
-exports.sellerStats = async (req, res) => {
-  // the date range was defined in the request query
+exports.sellersStats = async (req, res) => {
+  let initialDate = moment().subtract(1, 'months'); // default
+
+  if (req.query.range) {
+    initialDate = moment().subtract((req.query.initialDate * 1 || 1), 'days');
+  }
   try {
     const stats = await Order.aggregate([
       {
-        $lookup: {
-          from: 'sellers',
-          localField: 'seller',
-          foreignField: '_id',
-          as: 'seller',
+        $lookup:
+          {
+            from: 'sellers',
+            localField: 'seller',
+            foreignField: '_id',
+            as: 'sellers',
+          },
+      },
+      { $unwind: { path: '$sellers' } },
+
+      {
+        $project: {
+          status: 1,
+          createdAt: 1,
+          sellers: {
+            userName: 1,
+            _id: 1,
+          },
+          orderAmount: {
+            grossValue: 1,
+            sellerProfit: 1,
+          },
+          _id: 0,
         },
       },
       {
-        $lookup: {
-          from: 'products',
-          localField: 'products',
-          foreignField: '_id',
-          as: 'products',
+        $group: {
+          _id: '$sellers.userName',
+          totalSells: { $sum: 1 },
+          totalGrossAmount: { $sum: { $round: ['$orderAmount.grossValue', 2] } },
+          totalProfit: { $sum: { $round: ['$orderAmount.sellerProfit', 2] } },
+          success: { $sum: { $cond: [{ $eq: ['$status', 'success'] }, 1, 0] } },
+          pending: { $sum: { $cond: [{ $eq: ['$status', 'pending'] }, 1, 0] } },
+          canceled: { $sum: { $cond: [{ $eq: ['$status', 'canceled'] }, 1, 0] } },
+          lastSell: { $last: '$createdAt' },
         },
+      },
+      {
+        $sort: {
+          'createdAt': 1,
+        },
+      },
+    ]);
+    res.status(201).json({
+      status: 'success',
+      results: stats.length,
+      data: stats,
+    });
+  } catch (error) {
+    res.status(400).json({
+      message: error,
+    });
+  }
+};
+exports.productsStats = async (req, res) => {
+  let initialDate = moment().subtract(1, 'months'); // default
+
+  if (req.query.range) {
+    initialDate = moment().subtract((req.query.initialDate * 1 || 1), 'days');
+  }
+  try {
+    const stats = await Order.aggregate([
+      {
+        $match: {
+          status: 'pending',
+        },
+      },
+      {
+        $lookup:
+          {
+            from: 'typeproducts',
+            localField: 'typeProducts.typeProductId',
+            foreignField: '_id',
+            as: 'products',
+          },
+      },
+      {
+        $unwind: { path: '$itemProducts' },
       },
       {
         $project: {
-          seller: {
-            password: 0,
-            __v: 0,
+          productName: {
+            $arrayElemAt: [
+              {
+                $filter: {
+                  input: '$products',
+                  as: 'product',
+                  cond: { $eq: ['$$product._id', '$itemProducts.typeProductId'] },
+                },
+              },
+              0,
+            ],
+          },
+          itemProducts: {
+            typeProductId: 1,
           },
         },
       },
       {
         $group: {
-          _id: '$seller',
-          totalSells: { $sum: 1 },
-          lastSell: { $last: '$createdAt' },
-          // add to get more sellers stats
+          _id: '$itemProducts',
+          total: { $sum: 1 },
+          name: { $first: '$productName.name' },
         },
       },
       {
         $sort: {
-          totalSells: -1,
+          total: -1,
         },
       },
-
     ]);
     res.status(201).json({
       status: 'success',

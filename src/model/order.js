@@ -19,14 +19,12 @@ const OrderSchema = new Schema({
     ref: 'Costumer',
     required: true,
   },
-  typeProducts: [{
+  typeProducts: [{ // required?
     typeProductId: {
       type: Schema.Types.ObjectId,
       ref: 'TypeProduct',
-      required: true,
     },
     qty: { type: Number, default: 1 },
-    grossSellingPrice: { type: Number, default: 0 },
   }],
   itemProducts: [{
     typeProductId: {
@@ -47,7 +45,7 @@ const OrderSchema = new Schema({
   },
   status: {
     type: String,
-    enum: ['pending', 'created', 'success', 'canceled'],
+    enum: ['pending', 'success', 'canceled'],
     default: 'pending',
   },
 });
