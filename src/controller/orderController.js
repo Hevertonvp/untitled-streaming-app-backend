@@ -4,7 +4,6 @@ const Seller = require('../model/seller');
 const typeProduct = require('../model/typeProduct');
 const ItemProduct = require('../model/itemProduct');
 const Costumer = require('../model/costumer');
-
 const APIfeatures = require('../utils/api-features');
 
 exports.index = async (req, res) => {
@@ -208,7 +207,7 @@ exports.salesStats = async (req, res) => {
       {
         $group: {
           _id: null,
-          totalSells: { $sum: 1 },
+          totalSales: { $sum: 1 },
           success: { $sum: { $cond: [{ $eq: ['$status', 'success'] }, 1, 0] } },
           pending: { $sum: { $cond: [{ $eq: ['$status', 'pending'] }, 1, 0] } },
           canceled: { $sum: { $cond: [{ $eq: ['$status', 'canceled'] }, 1, 0] } },
@@ -271,13 +270,13 @@ exports.sellersStats = async (req, res) => {
       {
         $group: {
           _id: '$sellers.userName',
-          totalSells: { $sum: 1 },
+          totalSales: { $sum: 1 },
           totalGrossAmount: { $sum: { $round: ['$orderAmount.grossValue', 2] } },
           totalProfit: { $sum: { $round: ['$orderAmount.sellerProfit', 2] } },
           success: { $sum: { $cond: [{ $eq: ['$status', 'success'] }, 1, 0] } },
           pending: { $sum: { $cond: [{ $eq: ['$status', 'pending'] }, 1, 0] } },
           canceled: { $sum: { $cond: [{ $eq: ['$status', 'canceled'] }, 1, 0] } },
-          lastSell: { $last: '$createdAt' },
+          lastSale: { $last: '$createdAt' },
         },
       },
       {
@@ -307,7 +306,7 @@ exports.productsStats = async (req, res) => {
     const stats = await Order.aggregate([
       {
         $match: {
-          status: 'pending',
+          status: 'pending', // change to success
         },
       },
       {

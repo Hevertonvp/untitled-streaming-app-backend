@@ -4,6 +4,9 @@ const costumerRoutes = require('./routes/costumerRoutes');
 const typeProductRoutes = require('./routes/typeProductRoutes');
 const orderRoutes = require('./routes/orderRoutes');
 const itemProductRoutes = require('./routes/itemProductRoutes');
+const globalErrorHandler = require('./controller/errorController');
+const AppError = require('./utils/appError');
+
 // const adminRoutes = require('./routes/adminRoutes');
 
 const app = express();
@@ -17,7 +20,10 @@ app.use('/api/v1/costumers', costumerRoutes);
 app.use('/api/v1/products', typeProductRoutes);
 app.use('/api/v1/orders', orderRoutes);
 app.use('/api/v1/items', itemProductRoutes);
+app.all('*', (req, res, next) => {
+  next(new Error('não foi possível encotrar a página requisitada. Verifique a grafia e tente novamente', 404));
+});
 
-// app.use('/api/v1/admins', adminRoutes);
+app.use(globalErrorHandler);
 
 module.exports = app;
