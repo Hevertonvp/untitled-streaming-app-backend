@@ -4,8 +4,9 @@
   "description": "",
   "main": "src/app.js",
   "scripts": {
-    "start": "nodemon start src/server.js",
-    "debug":"ndb src/server.js"
+    "start": "nodemon src/server.js",
+    "start:prod": "SET NODE_ENV=production&&nodemon src/server.js",
+    "debug": "ndb src/server.js"
   },
   "keywords": [],
   "author": "",
@@ -22,6 +23,8 @@
     "moment": "^2.29.4",
     "moment-timezone": "^0.5.37",
     "mongoose": "^6.6.1",
-    "ndb": "^1.1.5"
+    "morgan": "^1.10.0",
+    "ndb": "^1.1.5",
+    "validator": "^13.9.0"
   }
 }

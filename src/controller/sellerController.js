@@ -1,5 +1,5 @@
 const Seller = require('../model/seller');
-
+const catchAsync = require('../utils/catchAsync');
 // filters:
 // by expiration date
 // by name
@@ -43,22 +43,17 @@ exports.store = async (req, res) => {
     });
   }
 };
-exports.show = async (req, res) => {
-  try {
-    const newSeller = await Seller.findById(req.params.id);
+exports.show = catchAsync(async (req, res, next) => {
+  const newSeller = await Seller.findById(req.params.id);
 
-    res.status(201).json({
-      status: 'success',
-      data: {
-        seller: newSeller,
-      },
-    });
-  } catch (error) {
-    res.status(400).json({
-      message: error,
-    });
-  }
-};
+  res.status(201).json({
+    status: 'success',
+    data: {
+      seller: newSeller,
+    },
+  });
+});
+
 exports.update = async (req, res) => {
   try {
     const newSeller = await Seller.findByIdAndUpdate(

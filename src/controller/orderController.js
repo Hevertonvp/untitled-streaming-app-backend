@@ -1,3 +1,4 @@
+/* eslint-disable consistent-return */
 const moment = require('moment');
 const Order = require('../model/order');
 const Seller = require('../model/seller');
@@ -5,362 +6,321 @@ const typeProduct = require('../model/typeProduct');
 const ItemProduct = require('../model/itemProduct');
 const Costumer = require('../model/costumer');
 const APIfeatures = require('../utils/api-features');
+const AppError = require('../utils/appError');
+const catchAsync = require('../utils/catchAsync');
 
-exports.index = async (req, res) => {
-  try {
-    const features = new APIfeatures(
-      Order.find(
-        {},
-        {
-          itemProducts: 0,
-          typeProducts: 0,
-        },
-      )
-        .populate([
-          { path: 'costumer', select: 'name' },
-          { path: 'seller', select: 'userName' }]),
-      req.query,
+exports.index = catchAsync(async (req, res, next) => {
+  const features = new APIfeatures(
+    Order.find(
+      {},
+      {
+        itemProducts: 0,
+        typeProducts: 0,
+      },
     )
-      .filter()
-      .sort()
-      .limit()
-      .paginate();
+      .populate([
+        { path: 'costumer', select: 'name' },
+        { path: 'seller', select: 'userName' }]),
+    req.query,
+  )
+    .filter()
+    .sort()
+    .limit()
+    .paginate();
 
-    const orders = await features.query;
+  const orders = await features.query;
 
-    res.status(201).json({
-      status: 'success',
-      results: orders.length,
-      orders,
-    });
-  } catch (error) {
-    res.status(400).json({
-      status: 'fail',
-      message: `ocorreu um erro${error}`,
-    });
+  res.status(201).json({
+    status: 'success',
+    results: orders.length,
+    orders,
+  });
+});
+
+exports.store = catchAsync(async (req, res, next) => {
+  const sellerExists = await Seller.findById(req.body.seller);
+  if (!sellerExists) {
+    return next(new AppError('vendedor não encontrado', 404));
   }
-};
+  const costumerExists = await Costumer.findById(req.body.costumer);
+  if (!costumerExists) {
+    return next(new AppError('cliente não encontrado', 404));
+  }
+  const handleItemProducts = async () => {
+    const itemProducts = [];
 
-exports.store = async (req, res) => {
-  try {
-    const sellerExists = await Seller.findById(req.body.seller);
-    if (!sellerExists) {
-      throw new Error('vendedor não encontrado');
-    }
-    const costumerExists = await Costumer.findById(req.body.costumer);
-    if (!costumerExists) {
-      throw new Error('cliente não encontrado');
-    }
-    const handleItemProducts = async () => {
-      const itemProducts = [];
+    for (let i = 0; i < req.body.typeProducts.length; i++) {
+      const item = await ItemProduct.find(
+        {
+          $and: [
+            {
+              typeProductId: { $in: req.body.typeProducts[i].typeProductId },
+            },
+            {
+              isAvailable: { $eq: true },
+            },
+          ],
+        },
+      ).limit(req.body.typeProducts[i].qty);
 
-      for (let i = 0; i < req.body.typeProducts.length; i++) {
-        const item = await ItemProduct.find(
-          {
-            $and: [
-              {
-                typeProductId: { $in: req.body.typeProducts[i].typeProductId },
-              },
-              {
-                isAvailable: { $eq: true },
-              },
-            ],
-          },
-        ).limit(req.body.typeProducts[i].qty);
-
-        if (!item || item.length < req.body.typeProducts[i].qty) {
-          throw new Error('verifique a quantidade de produtos no estoque');
-        } else {
-          itemProducts.push(...item);
-        }
+      if (!item || item.length < req.body.typeProducts[i].qty) {
+        throw new AppError('verifique a quantidade de planos em estoque', 404); // return was keeping the code running
       }
-      return itemProducts;
-    };
-    const itemProducts = await handleItemProducts();
+      itemProducts.push(...item);
+    }
+    return itemProducts;
+  };
+  const itemProducts = await handleItemProducts();
 
-    const handleOrderAmount = async () => {
-      const grossProductValues = [];
-      const accServiceFee = [];
-      const netProductValues = [];
+  const handleOrderAmount = async () => {
+    const grossProductValues = [];
+    const accServiceFee = [];
+    const netProductValues = [];
 
-      for (let i = 0; i < req.body.typeProducts.length; i++) {
-        const item = await typeProduct.findOne({
-          _id: req.body.typeProducts[i].typeProductId,
-        });
-        if (!item) {
-          throw new Error('verifique se o tipo do produto foi cadastrado');
-        }
-        const minimumValue = item.registrationPrice + (item.serviceFee * 120);
+    for (let i = 0; i < req.body.typeProducts.length; i++) {
+      const item = await typeProduct.findOne({
+        _id: req.body.typeProducts[i].typeProductId,
+      });
+      if (!item) {
+        throw new AppError('verifique se o tipo do produto foi cadastrado', 404);
+      }
+      const minimumValue = item.registrationPrice + (item.serviceFee * 120);
 
-        if (req.body.typeProducts[i].grossSellingPrice
+      if (req.body.typeProducts[i].grossSellingPrice
           < minimumValue) {
-          throw new Error(
-            'o valor de cada um dos produtos deve receber o a taxa de serviço',
-          );
-        } else {
-          accServiceFee.push(
-            (req.body.typeProducts[i].grossSellingPrice
+        throw new AppError('o valor de cada um dos produtos deve receber o a taxa de serviço', 404);
+      }
+      accServiceFee.push(
+        (req.body.typeProducts[i].grossSellingPrice
               * item.serviceFee)
             * req.body.typeProducts[i].qty,
-          );
-          grossProductValues.push(req.body.typeProducts[i].grossSellingPrice
+      );
+      grossProductValues.push(req.body.typeProducts[i].grossSellingPrice
              * req.body.typeProducts[i].qty);
-          netProductValues.push((item.registrationPrice
+      netProductValues.push((item.registrationPrice
             * req.body.typeProducts[i].qty));
-        }
-      }
-      return {
-        grossValue: grossProductValues.reduce((crr, acc) => (crr + acc)),
-        netValue: netProductValues.reduce((crr, acc) => (crr + acc)),
-        admProfit: accServiceFee.reduce((crr, acc) => (crr + acc)),
+    }
+    return {
+      grossValue: grossProductValues.reduce((crr, acc) => (crr + acc)),
+      netValue: netProductValues.reduce((crr, acc) => (crr + acc)),
+      admProfit: accServiceFee.reduce((crr, acc) => (crr + acc)),
 
-      };
     };
+  };
 
-    const {
-      grossValue,
-      netValue,
-      admProfit,
-    } = await handleOrderAmount();
+  const {
+    grossValue,
+    netValue,
+    admProfit,
+  } = await handleOrderAmount();
 
-    const newOrder = await Order.create(
-      {
-        seller: req.body.seller,
-        costumer: req.body.costumer,
-        itemProducts,
-        orderAmount: {
-          grossValue,
-          sellerProfit: (grossValue - (netValue + admProfit)),
-          admProfit,
-        },
-        typeProducts: req.body.typeProducts,
+  const newOrder = await Order.create(
+    {
+      seller: req.body.seller,
+      costumer: req.body.costumer,
+      itemProducts,
+      orderAmount: {
+        grossValue,
+        sellerProfit: (grossValue - (netValue + admProfit)),
+        admProfit,
       },
-    );
-    const {
+      typeProducts: req.body.typeProducts,
+    },
+  );
+  const {
+    createdAt,
+    status,
+    seller,
+    costumer,
+    orderAmount,
+  } = newOrder;
+
+  res.status(201).json({
+    status: 'success',
+    order: {
       createdAt,
       status,
       seller,
       costumer,
       orderAmount,
-    } = newOrder;
+    },
+  });
+});
 
-    res.status(201).json({
-      status: 'success',
-      order: {
-        createdAt,
-        status,
-        seller,
-        costumer,
-        orderAmount,
-      },
-    });
-  } catch (e) {
-    res.status(400).json({
-      message: `${e}`,
-    });
+exports.show = catchAsync(async (req, res, next) => {
+  const newOrder = await Order.findById(req.params.id);
+  if (!newOrder) {
+    return next(new AppError('não foi possivel encontrar o pedido'));
   }
-};
-exports.show = async (req, res) => {
-  try {
-    const newOrder = await Order.findById(req.params.id);
+  res.status(201).json({
+    status: 'success',
+    data: {
+      newOrder,
+    },
+  });
+});
+exports.destroyMany = async (req, res, next) => {
+  const newOrder = await Order.deleteMany();
 
-    res.status(201).json({
-      status: 'success',
-      data: {
-        newOrder,
-      },
-    });
-  } catch (error) {
-    res.status(400).json({
-      message: error,
-    });
-  }
-};
-exports.destroyMany = async (req, res) => {
-  try {
-    const newOrder = await Order.deleteMany();
-
-    res.status(201).json({
-      status: 'success',
-      data: {
-        order: newOrder,
-      },
-    });
-  } catch (error) {
-    res.status(400).json({
-      message: error,
-    });
-  }
+  res.status(201).json({
+    status: 'success',
+    data: {
+      order: newOrder,
+    },
+  });
 };
 
-exports.salesStats = async (req, res) => {
+exports.salesStats = catchAsync(async (req, res, next) => {
   let initialDate = moment().subtract(1, 'months'); // default
 
   if (req.query.range) {
     initialDate = moment().subtract((req.query.initialDate * 1 || 1), 'days');
   }
-  try {
-    const stats = await Order.aggregate([
-      {
-        $match: { createdAt: { $gte: initialDate.toDate() } },
+  const stats = await Order.aggregate([
+    {
+      $match: { createdAt: { $gte: initialDate.toDate() } },
+    },
+    {
+      $group: {
+        _id: null,
+        totalSales: { $sum: 1 },
+        success: { $sum: { $cond: [{ $eq: ['$status', 'success'] }, 1, 0] } },
+        pending: { $sum: { $cond: [{ $eq: ['$status', 'pending'] }, 1, 0] } },
+        canceled: { $sum: { $cond: [{ $eq: ['$status', 'canceled'] }, 1, 0] } },
+        totalGrossAmount: { $sum: { $round: ['$orderAmount.grossValue', 2] } },
+        totalAdmProfit: { $sum: { $round: ['$orderAmount.admProfit', 2] } },
       },
-      {
-        $group: {
-          _id: null,
-          totalSales: { $sum: 1 },
-          success: { $sum: { $cond: [{ $eq: ['$status', 'success'] }, 1, 0] } },
-          pending: { $sum: { $cond: [{ $eq: ['$status', 'pending'] }, 1, 0] } },
-          canceled: { $sum: { $cond: [{ $eq: ['$status', 'canceled'] }, 1, 0] } },
-          totalGrossAmount: { $sum: { $round: ['$orderAmount.grossValue', 2] } },
-          totalAdmProfit: { $sum: { $round: ['$orderAmount.admProfit', 2] } },
-        },
+    },
+    {
+      $project: {
+        _id: 0,
       },
-      {
-        $project: {
-          _id: 0,
-        },
-      },
+    },
 
-    ]);
-    res.status(201).json({
-      status: 'success',
-      salesStatsByPeriod: stats,
-    });
-  } catch (error) {
-    res.status(400).json({
-      message: error,
-    });
-  }
-};
+  ]);
+  res.status(201).json({
+    status: 'success',
+    salesStatsByPeriod: stats,
+  });
+});
 
-exports.sellersStats = async (req, res) => {
+exports.sellersStats = catchAsync(async (req, res, next) => {
   let initialDate = moment().subtract(1, 'months'); // default
 
   if (req.query.range) {
     initialDate = moment().subtract((req.query.initialDate * 1 || 1), 'days');
   }
-  try {
-    const stats = await Order.aggregate([
-      {
-        $lookup:
+  const stats = await Order.aggregate([
+    {
+      $lookup:
           {
             from: 'sellers',
             localField: 'seller',
             foreignField: '_id',
             as: 'sellers',
           },
-      },
-      { $unwind: { path: '$sellers' } },
+    },
+    { $unwind: { path: '$sellers' } },
 
-      {
-        $project: {
-          status: 1,
-          createdAt: 1,
-          sellers: {
-            userName: 1,
-            _id: 1,
-          },
-          orderAmount: {
-            grossValue: 1,
-            sellerProfit: 1,
-          },
-          _id: 0,
+    {
+      $project: {
+        status: 1,
+        createdAt: 1,
+        sellers: {
+          userName: 1,
+          _id: 1,
         },
-      },
-      {
-        $group: {
-          _id: '$sellers.userName',
-          totalSales: { $sum: 1 },
-          totalGrossAmount: { $sum: { $round: ['$orderAmount.grossValue', 2] } },
-          totalProfit: { $sum: { $round: ['$orderAmount.sellerProfit', 2] } },
-          success: { $sum: { $cond: [{ $eq: ['$status', 'success'] }, 1, 0] } },
-          pending: { $sum: { $cond: [{ $eq: ['$status', 'pending'] }, 1, 0] } },
-          canceled: { $sum: { $cond: [{ $eq: ['$status', 'canceled'] }, 1, 0] } },
-          lastSale: { $last: '$createdAt' },
+        orderAmount: {
+          grossValue: 1,
+          sellerProfit: 1,
         },
+        _id: 0,
       },
-      {
-        $sort: {
-          createdAt: 1,
-        },
+    },
+    {
+      $group: {
+        _id: '$sellers.userName',
+        totalSales: { $sum: 1 },
+        totalGrossAmount: { $sum: { $round: ['$orderAmount.grossValue', 2] } },
+        totalProfit: { $sum: { $round: ['$orderAmount.sellerProfit', 2] } },
+        success: { $sum: { $cond: [{ $eq: ['$status', 'success'] }, 1, 0] } },
+        pending: { $sum: { $cond: [{ $eq: ['$status', 'pending'] }, 1, 0] } },
+        canceled: { $sum: { $cond: [{ $eq: ['$status', 'canceled'] }, 1, 0] } },
+        lastSale: { $last: '$createdAt' },
       },
-    ]);
-    res.status(201).json({
-      status: 'success',
-      results: stats.length,
-      data: stats,
-    });
-  } catch (error) {
-    res.status(400).json({
-      message: error,
-    });
-  }
-};
-exports.productsStats = async (req, res) => {
+    },
+    {
+      $sort: {
+        createdAt: 1,
+      },
+    },
+  ]);
+  res.status(201).json({
+    status: 'success',
+    results: stats.length,
+    data: stats,
+  });
+});
+exports.productsStats = catchAsync(async (req, res, next) => {
   let initialDate = moment().subtract(1, 'months'); // default
 
   if (req.query.range) {
     initialDate = moment().subtract((req.query.initialDate * 1 || 1), 'days');
   }
-  try {
-    const stats = await Order.aggregate([
-      {
-        $match: {
-          status: 'pending', // change to success
-        },
+
+  const stats = await Order.aggregate([
+    {
+      $match: {
+        status: 'pending', // change to success
       },
-      {
-        $lookup:
+    },
+    {
+      $lookup:
           {
             from: 'typeproducts',
             localField: 'typeProducts.typeProductId',
             foreignField: '_id',
             as: 'products',
           },
-      },
-      {
-        $unwind: { path: '$itemProducts' },
-      },
-      {
-        $project: {
-          productName: {
-            $arrayElemAt: [
-              {
-                $filter: {
-                  input: '$products',
-                  as: 'product',
-                  cond: { $eq: ['$$product._id', '$itemProducts.typeProductId'] },
-                },
+    },
+    {
+      $unwind: { path: '$itemProducts' },
+    },
+    {
+      $project: {
+        productName: {
+          $arrayElemAt: [
+            {
+              $filter: {
+                input: '$products',
+                as: 'product',
+                cond: { $eq: ['$$product._id', '$itemProducts.typeProductId'] },
               },
-              0,
-            ],
-          },
-          itemProducts: {
-            typeProductId: 1,
-          },
+            },
+            0,
+          ],
+        },
+        itemProducts: {
+          typeProductId: 1,
         },
       },
-      {
-        $group: {
-          _id: '$itemProducts',
-          total: { $sum: 1 },
-          name: { $first: '$productName.name' },
-        },
+    },
+    {
+      $group: {
+        _id: '$itemProducts',
+        total: { $sum: 1 },
+        name: { $first: '$productName.name' },
       },
-      {
-        $sort: {
-          total: -1,
-        },
+    },
+    {
+      $sort: {
+        total: -1,
       },
-    ]);
-    res.status(201).json({
-      status: 'success',
-      results: stats.length,
-      data: stats,
-    });
-  } catch (error) {
-    res.status(400).json({
-      message: error,
-    });
-  }
-};
+    },
+  ]);
+  res.status(201).json({
+    status: 'success',
+    results: stats.length,
+    data: stats,
+  });
+});

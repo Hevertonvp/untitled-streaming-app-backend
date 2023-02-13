@@ -1,19 +1,27 @@
 const mongoose = require('mongoose');
+const validator = require('validator');
 
 const { Schema } = mongoose;
 const sellerSchema = new Schema({
   userName: {
     type: String,
-    required: [true, 'must have a valid name'],
   },
   password: {
     type: String,
-    required: [true, 'must have a valid password'],
+    required: [true, 'por favor, insira uma senha válida'],
+    minLenght: 8,
+  },
+  passwordConfirm: {
+    type: String,
+    required: [true, 'por favor, confirme sua senha'],
   },
   email: {
     type: String,
-    required: [true, 'must have a valid email address'],
-    unique: true,
+    required: [true, 'o campo Email é obrigatório'],
+    unique: [true,
+      'O email informado já existe no banco de dados. por favor, tente realizar o login ou redefina sua senha'],
+    lowercase: true,
+    validate: [validator.isEmail, 'por favor, insira um Email válido'],
   },
   phone: {
     type: String,
