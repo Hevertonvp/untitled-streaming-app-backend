@@ -1,14 +1,15 @@
 const AppError = require('../utils/appError');
 
 const handleDbCastError = (err) => {
-  const message = `invalid${err.path}: ${err}`;
+  const message = `invalido${err.path}: ${err}`;
   return new AppError(message, 404);
 };
 const handleDbDuplicatedFields = (err) => {
-  const message = `duplicate field value, try a diferent value! ${err.path}: ${err}`;
-
+  const message = `O valor já existe no banco, tente um valor diferente! ${err.path}: ${err}`;
   return new AppError(message, 404);
 };
+const handleTokenModifiedJsonError = (err) => new AppError('erro de validação do token, por favor, faça login novamente', 401);
+const handleTokenExpiredJsonError = (err) => new AppError('seu acesso expirou por favor, faça login novamente ', 401);
 const sendErrorDev = (err, res) => {
   res.status(err.statusCode).json({
     status: err.status,
@@ -43,7 +44,8 @@ module.exports = (err, req, res, next) => {
     console.log(error);
     if (error.name === 'CastError') error = handleDbCastError(error);
     if (error.code === 11000) error = handleDbDuplicatedFields(error);
-
+    if (error.name === 'JsonWebTokenError') error = handleTokenModifiedJsonError(error);
+    if (error.name === 'TokenExpiredError') error = handleTokenExpiredJsonError(error);
     sendErrorProd(error, res);
   }
 };
