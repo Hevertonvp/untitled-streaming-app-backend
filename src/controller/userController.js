@@ -1,22 +1,23 @@
-/* eslint-disable no-unused-vars */
-const moment = require('moment-timezone');
-const Costumer = require('../model/costumer');
+const User = require('../model/user');
+const catchAsync = require('../utils/catchAsync');
+// filters:
+// by expiration date
+// by name
+// by type of plan
 
 exports.index = async (req, res) => {
-  // const queryObj = { ...req.query };
-  // const excludedFields = ['page', 'sort', 'limit', 'fields'];
-  //  excluding these field values to avoid if it passed as query parameters
-  // excludedFields.forEach((el) => {
-  //   delete queryObj[el];
-  // });
+  // incluir ou não desativados
+
   try {
-    const costumers = await Costumer.find();
+    const newUsers = await User
+      .find()
+      .sort('isActive');
 
     res.status(201).json({
       status: 'success',
       data: {
-        results: costumers.length,
-        costumers,
+        results: newUsers.length,
+        users: newUsers,
       },
     });
   } catch (error) {
@@ -29,14 +30,11 @@ exports.index = async (req, res) => {
 
 exports.store = async (req, res) => {
   try {
-    if (req.body.isOnTrial) { // new costumers have 7 days to register
-      req.body.expirationDate = moment().add(7, 'days').calendar();
-    }
-    const costumer = await Costumer.create(req.body);
+    const newUser = await User.create(req.body);
     res.status(201).json({
       status: 'success',
       data: {
-        costumer,
+        user: newUser,
       },
     });
   } catch (error) {
@@ -45,25 +43,20 @@ exports.store = async (req, res) => {
     });
   }
 };
-exports.show = async (req, res) => {
-  try {
-    const costumer = await Costumer.findById(req.params.id);
+exports.show = catchAsync(async (req, res, next) => {
+  const newUser = await User.findById(req.params.id);
 
-    res.status(201).json({
-      status: 'success',
-      data: {
-        costumer,
-      },
-    });
-  } catch (error) {
-    res.status(400).json({
-      message: error,
-    });
-  }
-};
+  res.status(201).json({
+    status: 'success',
+    data: {
+      user: newUser,
+    },
+  });
+});
+
 exports.update = async (req, res) => {
   try {
-    const costumer = await Costumer.findByIdAndUpdate(
+    const newUser = await User.findByIdAndUpdate(
       req.params.id,
       req.body,
       {
@@ -75,7 +68,7 @@ exports.update = async (req, res) => {
     res.status(201).json({
       status: 'success',
       data: {
-        costumer,
+        user: newUser,
       },
     });
   } catch (error) {
@@ -86,7 +79,7 @@ exports.update = async (req, res) => {
 };
 exports.destroy = async (req, res) => {
   try {
-    const newCostumer = await Costumer.findByIdAndUpdate(
+    const newUser = await User.findByIdAndUpdate(
       req.params.id,
       { isActive: false },
       {
@@ -98,7 +91,7 @@ exports.destroy = async (req, res) => {
     res.status(201).json({
       status: 'success',
       data: {
-        seller: newCostumer,
+        user: newUser,
       },
     });
   } catch (error) {
@@ -107,14 +100,15 @@ exports.destroy = async (req, res) => {
     });
   }
 };
+
 exports.destroyMany = async (req, res) => {
   try {
-    const costumer = await Costumer.deleteMany();
+    const newUser = await User.deleteMany();
 
     res.status(201).json({
       status: 'success',
       data: {
-        costumer,
+        user: newUser,
       },
     });
   } catch (error) {

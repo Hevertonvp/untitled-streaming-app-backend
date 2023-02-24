@@ -11,12 +11,12 @@ const OrderSchema = new Schema({
   },
   seller: {
     type: Schema.Types.ObjectId,
-    ref: 'Seller',
+    ref: 'User',
     required: true,
   },
   costumer: {
     type: Schema.Types.ObjectId,
-    ref: 'Costumer',
+    ref: 'User',
     required: true,
   },
   typeProducts: [{ // required?
@@ -36,7 +36,7 @@ const OrderSchema = new Schema({
     grossValue: {
       type: Number, default: 0,
     },
-    sellerProfit: {
+    userProfit: {
       type: Number, default: 0,
     },
     admProfit: {

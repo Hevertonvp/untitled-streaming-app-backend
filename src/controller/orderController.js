@@ -1,10 +1,9 @@
 /* eslint-disable consistent-return */
 const moment = require('moment');
 const Order = require('../model/order');
-const Seller = require('../model/seller');
+const User = require('../model/user');
 const typeProduct = require('../model/typeProduct');
 const ItemProduct = require('../model/itemProduct');
-const Costumer = require('../model/costumer');
 const APIfeatures = require('../utils/api-features');
 const AppError = require('../utils/appError');
 const catchAsync = require('../utils/catchAsync');
@@ -20,7 +19,7 @@ exports.index = catchAsync(async (req, res, next) => {
     )
       .populate([
         { path: 'costumer', select: 'name' },
-        { path: 'seller', select: 'userName' }]),
+        { path: 'user', select: 'userName' }]),
     req.query,
   )
     .filter()
@@ -37,15 +36,15 @@ exports.index = catchAsync(async (req, res, next) => {
   });
 });
 
+// após a troca para o model user, quais validações são necessárias aqui?
+
 exports.store = catchAsync(async (req, res, next) => {
-  const sellerExists = await Seller.findById(req.body.seller);
-  if (!sellerExists) {
-    return next(new AppError('vendedor não encontrado', 404));
-  }
-  const costumerExists = await Costumer.findById(req.body.costumer);
+  const costumerExists = await User.findById(req.body.costumer);
+
   if (!costumerExists) {
-    return next(new AppError('cliente não encontrado', 404));
+    return next(new AppError('cliente não encontrado, favor cadastrar novo cliente', 404));
   }
+
   const handleItemProducts = async () => {
     const itemProducts = [];
 
@@ -121,7 +120,7 @@ exports.store = catchAsync(async (req, res, next) => {
       itemProducts,
       orderAmount: {
         grossValue,
-        sellerProfit: (grossValue - (netValue + admProfit)),
+        userProfit: (grossValue - (netValue + admProfit)),
         admProfit,
       },
       typeProducts: req.body.typeProducts,
@@ -130,7 +129,7 @@ exports.store = catchAsync(async (req, res, next) => {
   const {
     createdAt,
     status,
-    seller,
+    user,
     costumer,
     orderAmount,
   } = newOrder;
@@ -140,7 +139,7 @@ exports.store = catchAsync(async (req, res, next) => {
     order: {
       createdAt,
       status,
-      seller,
+      user,
       costumer,
       orderAmount,
     },
@@ -204,7 +203,7 @@ exports.salesStats = catchAsync(async (req, res, next) => {
   });
 });
 
-exports.sellersStats = catchAsync(async (req, res, next) => {
+exports.usersStats = catchAsync(async (req, res, next) => {
   let initialDate = moment().subtract(1, 'months'); // default
 
   if (req.query.range) {
@@ -214,35 +213,35 @@ exports.sellersStats = catchAsync(async (req, res, next) => {
     {
       $lookup:
           {
-            from: 'sellers',
-            localField: 'seller',
+            from: 'users',
+            localField: 'user',
             foreignField: '_id',
-            as: 'sellers',
+            as: 'users',
           },
     },
-    { $unwind: { path: '$sellers' } },
+    { $unwind: { path: '$users' } },
 
     {
       $project: {
         status: 1,
         createdAt: 1,
-        sellers: {
+        users: {
           userName: 1,
           _id: 1,
         },
         orderAmount: {
           grossValue: 1,
-          sellerProfit: 1,
+          userProfit: 1,
         },
         _id: 0,
       },
     },
     {
       $group: {
-        _id: '$sellers.userName',
+        _id: '$users.userName',
         totalSales: { $sum: 1 },
         totalGrossAmount: { $sum: { $round: ['$orderAmount.grossValue', 2] } },
-        totalProfit: { $sum: { $round: ['$orderAmount.sellerProfit', 2] } },
+        totalProfit: { $sum: { $round: ['$orderAmount.userProfit', 2] } },
         success: { $sum: { $cond: [{ $eq: ['$status', 'success'] }, 1, 0] } },
         pending: { $sum: { $cond: [{ $eq: ['$status', 'pending'] }, 1, 0] } },
         canceled: { $sum: { $cond: [{ $eq: ['$status', 'canceled'] }, 1, 0] } },

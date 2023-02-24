@@ -7,7 +7,7 @@ const validator = require('validator');
 const bcrypt = require('bcryptjs');
 
 const { Schema } = mongoose;
-const sellerSchema = new Schema({
+const userSchema = new Schema({
   userName: {
     type: String,
   },
@@ -28,18 +28,24 @@ const sellerSchema = new Schema({
       message: 'as senhas não são iguais',
     },
   },
+  // needs implementation
   passwordChangedAt: Date,
   email: {
     type: String,
-    required: [true, 'o campo Email é obrigatório'],
+    required: [true, 'o campo email é obrigatório'],
     unique: [true,
       'O email informado já existe no banco de dados. por favor, tente realizar o login ou redefina sua senha'],
     lowercase: true,
-    validate: [validator.isEmail, 'por favor, insira um Email válido'],
+    validate: [validator.isEmail, 'por favor, insira um email válido'],
   },
   phone: {
     type: String,
     required: true,
+  },
+  role: {
+    type: String,
+    enum: ['admin', 'seller', 'costumer'],
+    default: 'costumer',
   },
   isActive: {
     type: Boolean,
@@ -47,18 +53,18 @@ const sellerSchema = new Schema({
   },
 });
 
-sellerSchema.pre('save', async function (next) {
+userSchema.pre('save', async function (next) {
   if (!this.isModified('password')) return next();
 
   this.password = await bcrypt.hash(this.password, 12);
   this.passwordConfirm = undefined;
 });
 
-sellerSchema.methods.correctPassword = async function (candidatePassword, sellerPassword) {
-  return await bcrypt.compare(candidatePassword, sellerPassword);
+userSchema.methods.correctPassword = async function (candidatePassword, userPassword) {
+  return await bcrypt.compare(candidatePassword, userPassword);
 };
-
-sellerSchema.methods.changePasswordAfter = function (JWTTimesstamp) {
+// received the token than changed the password?
+userSchema.methods.changePasswordAfter = function (JWTTimesstamp) {
   if (this.passwordChangedAt) {
     const changedTimeStamp = parseInt(
       this.passwordChangedAt.getTime() / 1000,
@@ -68,6 +74,6 @@ sellerSchema.methods.changePasswordAfter = function (JWTTimesstamp) {
   }
   return false;
 };
-const Seller = mongoose.model('Seller', sellerSchema);
+const User = mongoose.model('User', userSchema);
 
-module.exports = Seller;
+module.exports = User;

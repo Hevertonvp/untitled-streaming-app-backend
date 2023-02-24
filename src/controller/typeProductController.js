@@ -98,7 +98,7 @@ exports.destroy = async (req, res) => {
     res.status(201).json({
       status: 'success',
       data: {
-        seller: newProduct,
+        user: newProduct,
       },
     });
   } catch (error) {
