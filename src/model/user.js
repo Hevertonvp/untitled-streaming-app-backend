@@ -5,11 +5,14 @@
 const mongoose = require('mongoose');
 const validator = require('validator');
 const bcrypt = require('bcryptjs');
+const crypto = require('crypto');
+const sendEmail = require('../utils/email');
 
 const { Schema } = mongoose;
 const userSchema = new Schema({
   userName: {
     type: String,
+    required: [true, 'por favor, insira o campo NOME'],
   },
   password: {
     type: String,
@@ -28,8 +31,11 @@ const userSchema = new Schema({
       message: 'as senhas não são iguais',
     },
   },
-  // needs implementation
+
   passwordChangedAt: Date,
+  passwordResetToken: String,
+  validateNewUserToken: String,
+  passwordResetExpires: Date,
   email: {
     type: String,
     required: [true, 'o campo email é obrigatório'],
@@ -50,30 +56,65 @@ const userSchema = new Schema({
   isActive: {
     type: Boolean,
     default: true,
+    select: false,
+  },
+  emailIsValidated: {
+    type: Boolean,
+    default: false,
   },
 });
-
+// before saves a new user, check if the password was changed (our created)
+// and in this case, hashes it
 userSchema.pre('save', async function (next) {
   if (!this.isModified('password')) return next();
 
   this.password = await bcrypt.hash(this.password, 12);
   this.passwordConfirm = undefined;
 });
+// before the 'save' method, check if there's
+// a new password our a new user, and saves the date of the password change.
+// important! A second was subtracted to garantee the token will be received after this process
+userSchema.pre('save', function (next) {
+  if (!this.isModified('password') || this.isNew) return next();
+  this.passwordChangedAt = Date.now() - 1000;
+  return next();
+});
+
+userSchema.pre('save', async function (next) {
+  if (!this.isNew) {
+    return next();
+  }
+  const validateToken = crypto.randomBytes(32).toString('hex');
+  this.validateNewUserToken = validateToken;
+  next();
+});
 
 userSchema.methods.correctPassword = async function (candidatePassword, userPassword) {
   return await bcrypt.compare(candidatePassword, userPassword);
 };
-// received the token than changed the password?
+// check if the user has changed his password and in this case, a new token must be provided
 userSchema.methods.changePasswordAfter = function (JWTTimesstamp) {
   if (this.passwordChangedAt) {
     const changedTimeStamp = parseInt(
       this.passwordChangedAt.getTime() / 1000,
       10,
     );
-    return JWTTimesstamp < changedTimeStamp;
+    return JWTTimesstamp < changedTimeStamp; // false
   }
   return false;
 };
+// creates a new token for the reset password process.
+// the hashed version of the token will be stored, the non-hashed will be sended to the user.
+userSchema.methods.createPasswordResetToken = function () {
+  const resetToken = crypto.randomBytes(32).toString('hex');
+  this.passwordResetToken = crypto
+    .createHash('sha256')
+    .update(resetToken)
+    .digest('hex');
+  this.passwordResetExpires = Date.now() + 10 * 60 * 1000;
+  return resetToken;
+};
+
 const User = mongoose.model('User', userSchema);
 
 module.exports = User;

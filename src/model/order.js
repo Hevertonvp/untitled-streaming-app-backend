@@ -36,7 +36,7 @@ const OrderSchema = new Schema({
     grossValue: {
       type: Number, default: 0,
     },
-    userProfit: {
+    sellerProfit: {
       type: Number, default: 0,
     },
     admProfit: {

@@ -1,5 +1,10 @@
 const express = require('express');
 const morgan = require('morgan');
+const rateLimit = require('express-rate-limit');
+const helmet = require('helmet');
+const mongoSanatize = require('express-mongo-sanitize');
+const xss = require('xss-clean');
+const hpp = require('hpp');
 const userRoutes = require('./routes/userRoutes');
 const typeProductRoutes = require('./routes/typeProductRoutes');
 const orderRoutes = require('./routes/orderRoutes');
@@ -9,11 +14,33 @@ const AppError = require('./utils/appError');
 
 const app = express();
 
+app.use(helmet());
+
 if (process.env.NODE_ENV === 'development') {
   app.use(morgan('dev'));
 }
 
-app.use(express.json());
+const limiter = rateLimit({
+  max: 400,
+  windowMs: 60 * 60 * 1000,
+  message:
+  'Limite de requisições para mesmo usuário atingido, tente novamente em uma hora',
+});
+
+app.use('/api', limiter);
+app.use(express.json({ limit: '15kb' }));
+
+// data sanitization to prevent NoSQL injection
+
+app.use(mongoSanatize());
+app.use(xss());
+
+// preventing parameter polution
+
+app.use(hpp({
+  whitelist: ['price'],
+}));
+
 app.use(express.static('public'));
 
 app.get('/', (req, res) => console.log(res.send('youre in home')));

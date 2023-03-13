@@ -18,8 +18,8 @@ exports.index = catchAsync(async (req, res, next) => {
       },
     )
       .populate([
-        { path: 'costumer', select: 'name' },
-        { path: 'user', select: 'userName' }]),
+        { path: 'costumer', select: 'userName' },
+        { path: 'seller', select: 'userName' }]),
     req.query,
   )
     .filter()
@@ -120,7 +120,7 @@ exports.store = catchAsync(async (req, res, next) => {
       itemProducts,
       orderAmount: {
         grossValue,
-        userProfit: (grossValue - (netValue + admProfit)),
+        sellerProfit: (grossValue - (netValue + admProfit)),
         admProfit,
       },
       typeProducts: req.body.typeProducts,
@@ -129,7 +129,7 @@ exports.store = catchAsync(async (req, res, next) => {
   const {
     createdAt,
     status,
-    user,
+    seller,
     costumer,
     orderAmount,
   } = newOrder;
@@ -139,7 +139,7 @@ exports.store = catchAsync(async (req, res, next) => {
     order: {
       createdAt,
       status,
-      user,
+      seller,
       costumer,
       orderAmount,
     },
@@ -203,7 +203,7 @@ exports.salesStats = catchAsync(async (req, res, next) => {
   });
 });
 
-exports.usersStats = catchAsync(async (req, res, next) => {
+exports.sellerStats = catchAsync(async (req, res, next) => {
   let initialDate = moment().subtract(1, 'months'); // default
 
   if (req.query.range) {
@@ -214,34 +214,34 @@ exports.usersStats = catchAsync(async (req, res, next) => {
       $lookup:
           {
             from: 'users',
-            localField: 'user',
+            localField: 'seller',
             foreignField: '_id',
             as: 'users',
           },
     },
     { $unwind: { path: '$users' } },
 
-    {
-      $project: {
-        status: 1,
-        createdAt: 1,
-        users: {
-          userName: 1,
-          _id: 1,
-        },
-        orderAmount: {
-          grossValue: 1,
-          userProfit: 1,
-        },
-        _id: 0,
-      },
-    },
+    // {
+    //   $project: {
+    //     status: 1,
+    //     createdAt: 1,
+    //     users: {
+    //       userName: 1,
+    //       _id: 1,
+    //     },
+    //     orderAmount: {
+    //       grossValue: 1,
+    //       userProfit: 1,
+    //     },
+    //     _id: 0,
+    //   },
+    // },
     {
       $group: {
-        _id: '$users.userName',
+        _id: ['$users.userName', '$users.role'],
         totalSales: { $sum: 1 },
         totalGrossAmount: { $sum: { $round: ['$orderAmount.grossValue', 2] } },
-        totalProfit: { $sum: { $round: ['$orderAmount.userProfit', 2] } },
+        sellerProfit: { $sum: { $round: ['$orderAmount.sellerProfit', 2] } },
         success: { $sum: { $cond: [{ $eq: ['$status', 'success'] }, 1, 0] } },
         pending: { $sum: { $cond: [{ $eq: ['$status', 'pending'] }, 1, 0] } },
         canceled: { $sum: { $cond: [{ $eq: ['$status', 'canceled'] }, 1, 0] } },
@@ -260,6 +260,7 @@ exports.usersStats = catchAsync(async (req, res, next) => {
     data: stats,
   });
 });
+
 exports.productsStats = catchAsync(async (req, res, next) => {
   let initialDate = moment().subtract(1, 'months'); // default
 

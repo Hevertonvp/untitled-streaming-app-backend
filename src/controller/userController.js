@@ -1,9 +1,47 @@
+/* eslint-disable consistent-return */
 const User = require('../model/user');
 const catchAsync = require('../utils/catchAsync');
+const AppError = require('../utils/appError');
+const sendEmail = require('../utils/email');
 // filters:
 // by expiration date
 // by name
 // by type of plan
+
+const filterObj = (obj, ...fields) => {
+  let newObj = {};
+  Object.keys(obj).forEach((el) => {
+    if (fields.includes(el)) {
+      newObj = obj[el];
+    }
+  });
+  return newObj;
+};
+
+exports.updateMe = catchAsync(async (req, res, next) => {
+  if (req.body.password || req.body.passwordConfirm) {
+    return next(new AppError('Não é possível editar a senha nessa rota', 400));
+  }
+  const filteredBody = filterObj(req.body, 'userName', 'password');
+  const user = await User.findByIdAndUpdate(req.user.id, filterObj, {
+    new: true,
+    runValidators: true,
+  });
+  res.status(200).json({
+    status: 'success',
+    data: {
+      user,
+    },
+  });
+});
+
+exports.deleteMe = catchAsync(async (req, res, next) => {
+  const user = await User.findByIdAndUpdate(req.user.id, { isActive: false });
+  res.status(200).json({
+    status: 'success',
+    data: null,
+  });
+});
 
 exports.index = async (req, res) => {
   // incluir ou não desativados
@@ -28,14 +66,20 @@ exports.index = async (req, res) => {
   }
 };
 
-exports.store = async (req, res) => {
+exports.createMe = async (req, res, next) => {
   try {
     const newUser = await User.create(req.body);
-    res.status(201).json({
+    const validateURL = `${req.protocol}://${req.get('host')}/api/v1/users/validateNewUser/${newUser.validateNewUserToken}`;
+    const message = `clique no link abaixo para validação do seu acesso ao sistema: \n \n ${validateURL}`;
+
+    await sendEmail({
+      email: newUser.email,
+      subject: 'Soliticação do acesso ao sistema',
+      message,
+    });
+    res.status(200).json({
       status: 'success',
-      data: {
-        user: newUser,
-      },
+      message,
     });
   } catch (error) {
     res.status(400).json({
