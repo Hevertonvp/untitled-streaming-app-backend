@@ -36,9 +36,7 @@ exports.index = catchAsync(async (req, res, next) => {
   });
 });
 
-// após a troca para o model user, quais validações são necessárias aqui?
-
-exports.store = catchAsync(async (req, res, next) => {
+exports.createBySeller = catchAsync(async (req, res, next) => {
   const costumerExists = await User.findById(req.body.costumer);
 
   if (!costumerExists) {
@@ -115,7 +113,7 @@ exports.store = catchAsync(async (req, res, next) => {
 
   const newOrder = await Order.create(
     {
-      seller: req.body.seller,
+      seller: req.user.id,
       costumer: req.body.costumer,
       itemProducts,
       orderAmount: {
@@ -146,6 +144,8 @@ exports.store = catchAsync(async (req, res, next) => {
   });
 });
 
+exports.fastSale = (req, res, next) => res.send('bollocks');
+
 exports.show = catchAsync(async (req, res, next) => {
   const newOrder = await Order.findById(req.params.id);
   if (!newOrder) {
@@ -168,159 +168,3 @@ exports.destroyMany = async (req, res, next) => {
     },
   });
 };
-
-exports.salesStats = catchAsync(async (req, res, next) => {
-  let initialDate = moment().subtract(1, 'months'); // default
-
-  if (req.query.range) {
-    initialDate = moment().subtract((req.query.initialDate * 1 || 1), 'days');
-  }
-  const stats = await Order.aggregate([
-    {
-      $match: { createdAt: { $gte: initialDate.toDate() } },
-    },
-    {
-      $group: {
-        _id: null,
-        totalSales: { $sum: 1 },
-        success: { $sum: { $cond: [{ $eq: ['$status', 'success'] }, 1, 0] } },
-        pending: { $sum: { $cond: [{ $eq: ['$status', 'pending'] }, 1, 0] } },
-        canceled: { $sum: { $cond: [{ $eq: ['$status', 'canceled'] }, 1, 0] } },
-        totalGrossAmount: { $sum: { $round: ['$orderAmount.grossValue', 2] } },
-        totalAdmProfit: { $sum: { $round: ['$orderAmount.admProfit', 2] } },
-      },
-    },
-    {
-      $project: {
-        _id: 0,
-      },
-    },
-
-  ]);
-  res.status(201).json({
-    status: 'success',
-    salesStatsByPeriod: stats,
-  });
-});
-
-exports.sellerStats = catchAsync(async (req, res, next) => {
-  let initialDate = moment().subtract(1, 'months'); // default
-
-  if (req.query.range) {
-    initialDate = moment().subtract((req.query.initialDate * 1 || 1), 'days');
-  }
-  const stats = await Order.aggregate([
-    {
-      $lookup:
-          {
-            from: 'users',
-            localField: 'seller',
-            foreignField: '_id',
-            as: 'users',
-          },
-    },
-    { $unwind: { path: '$users' } },
-
-    // {
-    //   $project: {
-    //     status: 1,
-    //     createdAt: 1,
-    //     users: {
-    //       userName: 1,
-    //       _id: 1,
-    //     },
-    //     orderAmount: {
-    //       grossValue: 1,
-    //       userProfit: 1,
-    //     },
-    //     _id: 0,
-    //   },
-    // },
-    {
-      $group: {
-        _id: ['$users.userName', '$users.role'],
-        totalSales: { $sum: 1 },
-        totalGrossAmount: { $sum: { $round: ['$orderAmount.grossValue', 2] } },
-        sellerProfit: { $sum: { $round: ['$orderAmount.sellerProfit', 2] } },
-        success: { $sum: { $cond: [{ $eq: ['$status', 'success'] }, 1, 0] } },
-        pending: { $sum: { $cond: [{ $eq: ['$status', 'pending'] }, 1, 0] } },
-        canceled: { $sum: { $cond: [{ $eq: ['$status', 'canceled'] }, 1, 0] } },
-        lastSale: { $last: '$createdAt' },
-      },
-    },
-    {
-      $sort: {
-        createdAt: 1,
-      },
-    },
-  ]);
-  res.status(201).json({
-    status: 'success',
-    results: stats.length,
-    data: stats,
-  });
-});
-
-exports.productsStats = catchAsync(async (req, res, next) => {
-  let initialDate = moment().subtract(1, 'months'); // default
-
-  if (req.query.range) {
-    initialDate = moment().subtract((req.query.initialDate * 1 || 1), 'days');
-  }
-
-  const stats = await Order.aggregate([
-    {
-      $match: {
-        status: 'pending', // change to success
-      },
-    },
-    {
-      $lookup:
-          {
-            from: 'typeproducts',
-            localField: 'typeProducts.typeProductId',
-            foreignField: '_id',
-            as: 'products',
-          },
-    },
-    {
-      $unwind: { path: '$itemProducts' },
-    },
-    {
-      $project: {
-        productName: {
-          $arrayElemAt: [
-            {
-              $filter: {
-                input: '$products',
-                as: 'product',
-                cond: { $eq: ['$$product._id', '$itemProducts.typeProductId'] },
-              },
-            },
-            0,
-          ],
-        },
-        itemProducts: {
-          typeProductId: 1,
-        },
-      },
-    },
-    {
-      $group: {
-        _id: '$itemProducts',
-        total: { $sum: 1 },
-        name: { $first: '$productName.name' },
-      },
-    },
-    {
-      $sort: {
-        total: -1,
-      },
-    },
-  ]);
-  res.status(201).json({
-    status: 'success',
-    results: stats.length,
-    data: stats,
-  });
-});

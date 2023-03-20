@@ -6,13 +6,15 @@ const mongoose = require('mongoose');
 const validator = require('validator');
 const bcrypt = require('bcryptjs');
 const crypto = require('crypto');
+const moment = require('moment');
 const sendEmail = require('../utils/email');
+const AppError = require('../utils/appError');
 
 const { Schema } = mongoose;
 const userSchema = new Schema({
   userName: {
     type: String,
-    required: [true, 'por favor, insira o campo NOME'],
+    required: [true, 'por favor, insira o campo nome'],
   },
   password: {
     type: String,
@@ -34,11 +36,11 @@ const userSchema = new Schema({
 
   passwordChangedAt: Date,
   passwordResetToken: String,
-  validateNewUserToken: String,
+  emailConfirmToken: String,
   passwordResetExpires: Date,
   email: {
     type: String,
-    required: [true, 'o campo email é obrigatório'],
+    required: [true, 'o campo email é obrigatório! Ele é necessário para envio dos códigos adquiridos'],
     unique: [true,
       'O email informado já existe no banco de dados. por favor, tente realizar o login ou redefina sua senha'],
     lowercase: true,
@@ -50,8 +52,14 @@ const userSchema = new Schema({
   },
   role: {
     type: String,
-    enum: ['admin', 'seller', 'costumer'],
+    enum: ['seller', 'costumer', 'admin'],
     default: 'costumer',
+    validate: {
+      validator: function (el) {
+        return el !== 'admin';
+      },
+      message: 'permissão negada',
+    },
   },
   isActive: {
     type: Boolean,
@@ -61,6 +69,11 @@ const userSchema = new Schema({
   emailIsValidated: {
     type: Boolean,
     default: false,
+  },
+  createdAt: {
+    type: Date,
+    required: true,
+    default: moment().toDate(),
   },
 });
 // before saves a new user, check if the password was changed (our created)
@@ -85,7 +98,7 @@ userSchema.pre('save', async function (next) {
     return next();
   }
   const validateToken = crypto.randomBytes(32).toString('hex');
-  this.validateNewUserToken = validateToken;
+  this.emailConfirmToken = validateToken;
   next();
 });
 
@@ -99,7 +112,7 @@ userSchema.methods.changePasswordAfter = function (JWTTimesstamp) {
       this.passwordChangedAt.getTime() / 1000,
       10,
     );
-    return JWTTimesstamp < changedTimeStamp; // false
+    return JWTTimesstamp < changedTimeStamp;
   }
   return false;
 };

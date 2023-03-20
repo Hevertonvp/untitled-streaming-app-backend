@@ -6,6 +6,7 @@ const mongoSanatize = require('express-mongo-sanitize');
 const xss = require('xss-clean');
 const hpp = require('hpp');
 const userRoutes = require('./routes/userRoutes');
+const guestRoutes = require('./routes/guestRoutes');
 const typeProductRoutes = require('./routes/typeProductRoutes');
 const orderRoutes = require('./routes/orderRoutes');
 const itemProductRoutes = require('./routes/itemProductRoutes');
@@ -48,6 +49,7 @@ app.use('/api/v1/users', userRoutes);
 app.use('/api/v1/products', typeProductRoutes);
 app.use('/api/v1/orders', orderRoutes);
 app.use('/api/v1/items', itemProductRoutes);
+app.use('/api/v1/guests', guestRoutes);
 app.all('*', (req, res, next) => next(
   new AppError('não foi possível encotrar a página requisitada. Verifique a grafia e tente novamente', 404),
 ));

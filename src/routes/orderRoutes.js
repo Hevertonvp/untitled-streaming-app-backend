@@ -2,23 +2,51 @@ const express = require('express');
 
 const router = express.Router();
 const authController = require('../controller/authController');
-const OrderController = require('../controller/OrderController');
+const orderController = require('../controller/OrderController');
+const orderStatsController = require('../controller/orderStatsController');
 
+// sales statistics
 router.get(
   '/',
   authController.protect,
-  authController.checkUserIsValidated,
-  OrderController.index,
+  authController.restrictTo('admin'),
+  orderController.index,
 );
 router.get(
   '/sales-stats',
   authController.protect,
   authController.restrictTo('admin'),
-  OrderController.salesStats,
+  orderStatsController.salesStats,
 );
-router.get('/sellers-stats', OrderController.sellerStats);
-router.get('/products-stats', OrderController.productsStats);
-router.post('/create', OrderController.store);
-router.get('/:id', OrderController.show);
-router.delete('/', OrderController.destroyMany);
+router.get(
+  '/sellers-stats',
+  authController.protect,
+  authController.restrictTo('admin'),
+  orderStatsController.sellerStats,
+);
+router.get(
+  '/products-stats',
+  authController.protect,
+  authController.restrictTo('admin'),
+  orderStatsController.productsStats,
+);
+
+router.get(
+  '/fastSale',
+  authController.guestProtect,
+  orderController.fastSale,
+);
+
+// sales management
+
+router.post(
+  '/createBySeller',
+  authController.protect,
+  authController.restrictTo('seller'),
+  orderController.createBySeller,
+);
+
+// created by visitor?
+
+router.delete('/', orderController.destroyMany); // delete
 module.exports = router;
