@@ -5,6 +5,7 @@ const catchAsync = require('../utils/catchAsync');
 const AppError = require('../utils/appError');
 const sendEmail = require('../utils/email');
 const factory = require('./factoryHandler');
+const createAndSendJWTToken = require('../utils/createAndSendJWT');
 
 const filterObj = (obj, ...fields) => {
   let newObj = {};
@@ -37,6 +38,43 @@ exports.show = catchAsync(async (req, res, next) => {
   });
 });
 
+exports.guestBecomeSeller = catchAsync(async (req, res, next) => {
+  const { user } = req;
+
+  if (!user) {
+    return next(new AppError('seu login temporário está expirado, favor, realize o login novamente'));
+  }
+  // using save() to respect the validation rules
+  user.userName = req.body.userName;
+  user.password = req.body.password;
+  user.passwordConfirm = req.body.passwordConfirm;
+  user.phone = req.body.phone;
+  user.role = 'seller';
+  const newUser = await user.save();
+  createAndSendJWTToken(
+    newUser,
+    200,
+    res,
+  );
+});
+exports.createCostumer = catchAsync(async (req, res, next) => {
+  const { user } = req;
+  if (!user) {
+    return next(new AppError('sua sessão expirou, favor, realize o login novamente'));
+  }
+  const costumer = await User.create({
+    userName: req.body.userName,
+    phone: req.body.phone,
+    email: req.body.email,
+    role: 'costumer',
+  });
+  createAndSendJWTToken(
+    costumer,
+    200,
+    res,
+  );
+});
+
 exports.updateMe = catchAsync(async (req, res, next) => {
   if (req.body.password || req.body.passwordConfirm) {
     return next(new AppError('Não é possível editar a senha nessa rota', 400));
@@ -46,7 +84,7 @@ exports.updateMe = catchAsync(async (req, res, next) => {
     'userName',
     'phone',
   );
-  const user = await User.findByIdAndUpdate(
+  const user = await User.updateOne(
     req.user.id,
     filteredBody,
     {

@@ -1,9 +1,12 @@
 const mongoose = require('mongoose');
 const moment = require('moment');
+const tTypeProduct = require('./typeProduct');
+const ItemProduct = require('./itemProduct');
+const AppError = require('../utils/appError');
 
 const { Schema } = mongoose;
 
-const OrderSchema = new Schema({
+const orderSchema = new Schema({
   createdAt: {
     type: Date,
     required: true,
@@ -50,6 +53,6 @@ const OrderSchema = new Schema({
   },
 });
 
-const Order = mongoose.model('Order', OrderSchema);
+const Order = mongoose.model('Order', orderSchema);
 
 module.exports = Order;

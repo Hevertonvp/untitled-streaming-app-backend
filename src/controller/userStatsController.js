@@ -5,7 +5,6 @@ const Order = require('../model/order');
 const catchAsync = require('../utils/catchAsync');
 
 exports.salesDataBySeller = catchAsync(async (req, res, next) => {
-  console.log(req.user.id);
   const orders = await Order.find(
     { seller: req.user.id },
     {

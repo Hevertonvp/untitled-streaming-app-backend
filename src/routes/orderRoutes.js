@@ -9,7 +9,7 @@ const orderStatsController = require('../controller/orderStatsController');
 router.get(
   '/',
   authController.protect,
-  authController.restrictTo('admin'),
+  authController.restrictTo('seller'),
   orderController.index,
 );
 router.get(
@@ -33,17 +33,15 @@ router.get(
 
 router.get(
   '/fastSale',
-  authController.guestProtect,
   orderController.fastSale,
 );
 
 // sales management
 
 router.post(
-  '/createBySeller',
+  '/createSaleOrder',
   authController.protect,
-  authController.restrictTo('seller'),
-  orderController.createBySeller,
+  orderController.createSaleOrder,
 );
 
 // created by visitor?

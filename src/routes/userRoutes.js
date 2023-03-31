@@ -8,9 +8,22 @@ const authController = require('../controller/authController');
 // security
 router.post('/signUp', authController.signUp);
 router.post('/login', authController.login);
+router.patch(
+  '/guestBecomeSeller',
+  authController.protect,
+  authController.restrictTo('guest'),
+  userController.guestBecomeSeller,
+);
+router.post(
+  '/createCostumer',
+  authController.protect,
+  authController.restrictTo('seller', 'admin'),
+  userController.createCostumer,
+);
+router.post('/guestLogin', authController.guestLogin);
 router.post('/forgotPassword', authController.protect, authController.forgotPassword);
 router.patch('/resetPassword/:token', authController.protect, authController.resetPassword);
-router.patch('/validateByEmail/:token', authController.protect, authController.validateByEmail);
+// router.patch('/validateByEmail/:token', authController.protect, authController.validateByEmail);
 router.patch('/updatePassword/', authController.protect, authController.updatePassword);
 
 // for users interaction:

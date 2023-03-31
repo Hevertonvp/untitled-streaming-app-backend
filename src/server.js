@@ -13,7 +13,7 @@ const server = app.listen(
   port,
   () => console.log(`app listening on http://localhost:${port}`),
 );
-
+// mongoose.set('runValidators', true); // here is your global setting
 mongoose.connect(
   process.env.DATABASE_STRING,
   {

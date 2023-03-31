@@ -2,7 +2,7 @@
 const moment = require('moment');
 const Order = require('../model/order');
 const User = require('../model/user');
-const typeProduct = require('../model/typeProduct');
+const TypeProduct = require('../model/typeProduct');
 const ItemProduct = require('../model/itemProduct');
 const APIfeatures = require('../utils/api-features');
 const AppError = require('../utils/appError');
@@ -36,8 +36,12 @@ exports.index = catchAsync(async (req, res, next) => {
   });
 });
 
-exports.createBySeller = catchAsync(async (req, res, next) => {
+exports.createSaleOrder = catchAsync(async (req, res, next) => {
   const costumerExists = await User.findById(req.body.costumer);
+  // if you're not a seller, i'm the seller!
+  const seller = req.user.role === 'guest'
+    ? await User.findOne({ role: 'admin' }).select('_id')
+    : req.user.id;
 
   if (!costumerExists) {
     return next(new AppError('cliente não encontrado, favor cadastrar novo cliente', 404));
@@ -75,13 +79,17 @@ exports.createBySeller = catchAsync(async (req, res, next) => {
     const netProductValues = [];
 
     for (let i = 0; i < req.body.typeProducts.length; i++) {
-      const item = await typeProduct.findOne({
+      const item = await TypeProduct.findOne({
         _id: req.body.typeProducts[i].typeProductId,
       });
       if (!item) {
         throw new AppError('verifique se o tipo do produto foi cadastrado', 404);
       }
-      const minimumValue = item.registrationPrice + (item.serviceFee * 120);
+      // não mesmo
+      // colocar no model?
+      // aumentar a taxa para guests?
+      // levar a função toda pra model, passar parametro role
+      const minimumValue = item.registrationPrice + (item.serviceFee * item.registrationPrice);
 
       if (req.body.typeProducts[i].grossSellingPrice
           < minimumValue) {
@@ -113,8 +121,9 @@ exports.createBySeller = catchAsync(async (req, res, next) => {
 
   const newOrder = await Order.create(
     {
-      seller: req.user.id,
+      // seller: req.user.id,
       costumer: req.body.costumer,
+      seller,
       itemProducts,
       orderAmount: {
         grossValue,
@@ -124,10 +133,10 @@ exports.createBySeller = catchAsync(async (req, res, next) => {
       typeProducts: req.body.typeProducts,
     },
   );
+  // olha
   const {
     createdAt,
     status,
-    seller,
     costumer,
     orderAmount,
   } = newOrder;
