@@ -24,11 +24,6 @@ const userSchema = new Schema({
 
   email: {
     type: String,
-    // required: [true, 'o campo email é obrigatório!
-    // Ele é necessário para envio dos códigos adquiridos'],
-    unique: [true,
-      `O email informado já existe no banco de dados.
-      por favor, tente realizar o login ou redefina sua senha`],
     lowercase: true,
     validate: [validator.isEmail, 'por favor, insira um email válido'],
     required: [true, `por favor, insira um email válido. Verifique se o email

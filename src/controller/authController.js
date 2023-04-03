@@ -40,10 +40,10 @@ exports.signUp = catchAsync(async (req, res, next) => {
   favor copiar e colar para finalizar o acesso.
   Seu token tem duração de 50 minutos,
   caso esse prazo se expire, será necessário realizar esse passo novamente.`;
-
+  // corrigir acesso
   if (guest) {
-    if (guest.role !== 'guest') {
-      next(new AppError('O acesso rápido é exclusivo para visitantes, por favor, realize o login com senha', 401));
+    if (guest.role === 'seller') {
+      return next(new AppError('o usuário já tem acesso de vendedor, favor realizar o login'));
     }
     guest.emailConfirmTokenExpires = tokenExpiresIn;
     guest.emailConfirmToken = token;
@@ -109,6 +109,7 @@ exports.protect = catchAsync(async (req, res, next) => {
     return next(new AppError('você precisa fazer login antes de realizar essa ação'));
   }
   const decoded = await promisify(jwt.verify)(token, process.env.JWT_SECRET);
+
   // check if the user still exists in the database
   const newUser = await User.findById(decoded.id);
   if (!newUser) {
@@ -119,6 +120,7 @@ exports.protect = catchAsync(async (req, res, next) => {
     return next(new AppError('o usuário mudou a senha recentemente, por favor, faça login novamente', 401));
   }
   req.user = newUser; // req.user is the one that travels over middlewares
+
   next();
 });
 
@@ -126,6 +128,7 @@ exports.restrictTo = (...roles) => (req, res, next) => {
   if (!roles.includes(req.user.role)) {
     return next(new AppError('você não tem permissões necessárias para realizar esta ação', 403));
   }
+
   next();
 };
 

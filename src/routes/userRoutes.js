@@ -5,51 +5,60 @@ const userController = require('../controller/userController');
 const userStatsController = require('../controller/userStatsController');
 const authController = require('../controller/authController');
 
-// security
 router.post('/signUp', authController.signUp);
 router.post('/login', authController.login);
-router.patch(
+router.post('/forgotPassword', authController.forgotPassword);
+router.patch('/resetPassword/:token', authController.resetPassword);
+
+router.delete('/', userController.destroyMany); // apagar
+// protected routes:
+router.use(authController.protect);
+// global users routes:
+router.patch('/updatePassword/', authController.updatePassword);
+router.patch('/updateMe/', userController.updateMe);
+router.delete('/deleteMe/', userController.deleteMe);
+router.get('/:id', userController.show);
+
+// guest routes:
+router.post(
   '/guestBecomeSeller',
-  authController.protect,
   authController.restrictTo('guest'),
   userController.guestBecomeSeller,
 );
-router.post(
-  '/createCostumer',
-  authController.protect,
-  authController.restrictTo('seller', 'admin'),
-  userController.createCostumer,
+
+// seller routes:
+router.use(authController.restrictTo('seller'));
+
+router.get(
+  '/salesStatsBySeller/',
+  userStatsController.salesStatsBySeller,
 );
-router.post('/guestLogin', authController.guestLogin);
-router.post('/forgotPassword', authController.protect, authController.forgotPassword);
-router.patch('/resetPassword/:token', authController.protect, authController.resetPassword);
-// router.patch('/validateByEmail/:token', authController.protect, authController.validateByEmail);
-router.patch('/updatePassword/', authController.protect, authController.updatePassword);
+router.get(
+  '/salesDataBySeller/',
+  authController.protect,
+  userStatsController.salesStatsBySeller,
 
-// for users interaction:
-router.patch('/updateMe/', authController.protect, userController.updateMe);
-router.delete('/deleteMe/', authController.protect, userController.deleteMe);
-router.get('/:id', authController.protect, userController.show);
+);
 
-// admin only:
+// admin routes:
+router.use(authController.restrictTo('admin'));
+
 router.put(
   '/:id',
-  authController.protect,
-  authController.restrictTo('admin'),
   userController.update,
 );
 router.get(
   '/',
-  authController.protect,
-  authController.restrictTo('admin'),
   userController.index,
 );
 
-// sales statistics
-router.get('/salesDataBySeller', authController.protect, userStatsController.salesDataBySeller); //
-router.get('/salesStatsBySeller', authController.protect, userStatsController.salesStatsBySeller); //
+// seller and admin routes:
+router.use(authController.restrictTo('seller', 'admin'));
 
-// apagar
-router.delete('/', userController.destroyMany); // apagar
+router.post(
+  '/createCostumer',
+  userController.createCostumer,
+);
+// router.patch('/validateByEmail/:token', authController.protect, authController.validateByEmail);
 
 module.exports = router;
