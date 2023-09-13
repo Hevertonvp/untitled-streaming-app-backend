@@ -24,6 +24,7 @@ const userSchema = new Schema({
 
   email: {
     type: String,
+    unique: [true, 'O email já existe no banco de dados'],
     lowercase: true,
     validate: [validator.isEmail, 'por favor, insira um email válido'],
     required: [true, `por favor, insira um email válido. Verifique se o email
@@ -49,12 +50,12 @@ const userSchema = new Schema({
     type: String,
     minLenght: 8,
     select: false,
-    required: function () { return this.role === 'seller'; },
+    required: function () { return this.role !== 'guest'; },
   },
   passwordConfirm: {
     type: String,
     select: false,
-    required: function () { return this.role === 'seller'; },
+    required: function () { return this.role !== 'guest'; },
     validate: {
       validator: function (el) {
         return el === this.password;
@@ -77,24 +78,22 @@ const userSchema = new Schema({
     required: true,
     default: moment().toDate(),
   },
+  refreshToken: [String],
 });
 
-// before saves a new user, check if the password was changed (our created)
-// and in this case, hashes it
 userSchema.pre('save', async function (next) {
   if (!this.isModified('password')) return next();
 
   this.password = await bcrypt.hash(this.password, 12);
   this.passwordConfirm = undefined;
 });
+// change it to middleware
 userSchema.pre('updateOne', async function (next) {
   if (!this.get('role') === 'admin') return next('Não autorizado');
 });
-// before the 'save' method, check if there's
-// a new password our a new user, and saves the date of the password change.
-// important! A second was subtracted to garantee the token will be received after this process
+
 userSchema.pre('save', function (next) {
-  if (!this.isModified('password') || this.role === 'guest') return next(); // senha foi modificada!
+  if (!this.isModified('password') || this.role === 'guest') return next();
 
   this.passwordChangedAt = Date.now() - 2000;
   return next();

@@ -12,45 +12,46 @@ const AppError = require('../utils/appError');
 const sendEmail = require('../utils/email');
 const createAndSendJWTToken = require('../utils/createAndSendJWT');
 
-const createAndSendConfirmationEmailToken = async (email) => {
-  const AccessToken = crypto.randomBytes(3).toString('hex');
-  const message = `Copie e cole o token abaixo para ter acesso ao sistema: \n\n ${AccessToken}`;
-  // economizar emailTrap!
+// a token sent just to verify the email address
+const createAndSendFirstAccessToken = async (email) => {
+  const firstAccessToken = crypto.randomBytes(3).toString('hex');
+  const message = `Copie e cole o token abaixo para ter acesso ao sistema: \n\n ${firstAccessToken}`;
 
   // try {
   //   await sendEmail({
   //     email,
-  //     subject: 'Soliticação do acesso de visitante ao',
+  //     subject: 'Soliticação do acesso',
   //     message,
   //   });
   // } catch (error) {
   //   return (new AppError('falha no envio do email do usuário.
   // tente novamente em alguns minutos', 500));
   // }
-  return AccessToken;
+  return firstAccessToken;
 };
 
-exports.signUp = catchAsync(async (req, res, next) => {
-  // send the email, one way our another
-  const token = await createAndSendConfirmationEmailToken(req.body.email);
-  let guest = await User.findOne({ email: req.body.email });
-
+exports.sendFirstAccessToken = catchAsync(async (req, res, next) => {
+  const token = await createAndSendFirstAccessToken(req.body.email);
+  const user = await User.findOne({ email: req.body.email });
   const tokenExpiresIn = moment().add(50, 'm').toDate();
   const message = `um token foi enviado para o email ${req.body.email},
   favor copiar e colar para finalizar o acesso.
   Seu token tem duração de 50 minutos,
   caso esse prazo se expire, será necessário realizar esse passo novamente.`;
-  // corrigir acesso
-  if (guest) {
-    if (guest.role === 'seller') {
-      return next(new AppError('o usuário já tem acesso de vendedor, favor realizar o login'));
+
+  if (user) {
+    if (user) {
+      return next(new AppError('Usuário já existente no banco de dados', 401));
     }
-    guest.emailConfirmTokenExpires = tokenExpiresIn;
-    guest.emailConfirmToken = token;
-    await guest.save({ validateBeforeSave: false });
+    if (user.role === 'seller') {
+      return next(new AppError('O usuário já tem acesso de vendedor, favor realizar o signIn', 401));
+    }
+    user.emailConfirmTokenExpires = tokenExpiresIn;
+    user.emailConfirmToken = token;
+    await user.save({ validateBeforeSave: false });
   }
 
-  guest = await User.create(
+  await User.create(
     {
       email: req.body.email,
       role: 'guest',
@@ -61,15 +62,15 @@ exports.signUp = catchAsync(async (req, res, next) => {
   res.status(200).json({
     status: 'success',
     message,
-    data: token,
+    data: token, // deletar
   });
 });
 
-exports.guestLogin = async (req, res, next) => {
+exports.firstAccessWithToken = async (req, res, next) => {
   const guest = await User.findOne({ emailConfirmToken: req.body.token });
   if (!guest) {
-    return next(new AppError(`não foi possível encontrar o usuário,
-    verifique o token de acesso e tente novamente`, 404));
+    return next(new AppError(`Não foi possível encontrar o usuário.
+    Verifique o token de acesso e tente novamente`, 404));
   }
 
   if (moment().toDate() > guest.emailConfirmTokenExpires) {
@@ -84,17 +85,42 @@ exports.guestLogin = async (req, res, next) => {
   await createAndSendJWTToken(newGuest, 200, res, message);
 };
 
-// guests becoming sellers:
-// on this route, guests can become sellers and sellers can create costumers
+exports.signUp = async (req, res, next) => {
+  const { user } = req;
 
-exports.login = catchAsync(async (req, res, next) => {
+  if (!user) {
+    return next(new AppError('seu signIn temporário está expirado,favor, realize o signIn novamente'));
+  }
+
+  try {
+    const newUser = await user.save();
+    user.userName = req.body.userName;
+    user.password = req.body.password;
+    user.passwordConfirm = req.body.passwordConfirm;
+    user.phone = req.body.phone;
+    user.role = 'costumer';
+    createAndSendJWTToken(
+      newUser,
+      200,
+      res,
+      'success',
+    );
+  } catch (error) {
+    return next(new AppError(error.message));
+  }
+};
+
+exports.signIn = catchAsync(async (req, res, next) => {
   const { email, password } = req.body;
   if (!email || !password) {
     return next(new AppError('verifique se o usuário e senha foram inseridos', 404));
   }
   const user = await User.findOne({ email }).select('+password');
-
-  if (!user || !(await user.correctPassword(password, user.password))) {
+  console.log(user.password);
+  if (
+    !user
+    || !(await user.correctPassword(password, user.password))
+  ) {
     return next(new AppError('verifique o seu email e senha e tente novamente', 401));
   }
   createAndSendJWTToken(user, 200, res);
@@ -106,7 +132,7 @@ exports.protect = catchAsync(async (req, res, next) => {
     token = req.headers.authorization.split(' ')[1];
   }
   if (!token) {
-    return next(new AppError('você precisa fazer login antes de realizar essa ação'));
+    return next(new AppError('você precisa fazer signIn antes de realizar essa ação'));
   }
   const decoded = await promisify(jwt.verify)(token, process.env.JWT_SECRET);
 
@@ -117,7 +143,7 @@ exports.protect = catchAsync(async (req, res, next) => {
   }
 
   if (newUser.changePasswordAfter(decoded.iat)) {
-    return next(new AppError('o usuário mudou a senha recentemente, por favor, faça login novamente', 401));
+    return next(new AppError('o usuário mudou a senha recentemente, por favor, faça signIn novamente', 401));
   }
   req.user = newUser; // req.user is the one that travels over middlewares
 

@@ -22,7 +22,6 @@ const createAndSendJWTToken = async (
   if (process.env.NODE_ENV === 'production') {
     cookieOptions.secure = true;
   }
-  // user.password = undefined;
   res.status(statusCode).json({
     status: 'success',
     message,

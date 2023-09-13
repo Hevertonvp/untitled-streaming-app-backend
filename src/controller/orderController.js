@@ -85,10 +85,9 @@ exports.createSaleOrder = catchAsync(async (req, res, next) => {
       if (!item) {
         throw new AppError('verifique se o tipo do produto foi cadastrado', 404);
       }
-      // não mesmo
       // colocar no model?
       // aumentar a taxa para guests?
-      // levar a função toda pra model, passar parametro role
+      // levar a função toda pra model, passar parametro role.
       const minimumValue = item.registrationPrice + (item.serviceFee * item.registrationPrice);
 
       if (req.body.typeProducts[i].grossSellingPrice
@@ -121,7 +120,6 @@ exports.createSaleOrder = catchAsync(async (req, res, next) => {
 
   const newOrder = await Order.create(
     {
-      // seller: req.user.id,
       costumer: req.body.costumer,
       seller,
       itemProducts,
@@ -133,7 +131,6 @@ exports.createSaleOrder = catchAsync(async (req, res, next) => {
       typeProducts: req.body.typeProducts,
     },
   );
-  // olha
   const {
     createdAt,
     status,
@@ -152,8 +149,6 @@ exports.createSaleOrder = catchAsync(async (req, res, next) => {
     },
   });
 });
-
-exports.fastSale = (req, res, next) => res.send('bollocks');
 
 exports.show = catchAsync(async (req, res, next) => {
   const newOrder = await Order.findById(req.params.id);

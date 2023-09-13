@@ -7,29 +7,29 @@ const catchAsync = require('../utils/catchAsync');
 
 exports.salesDataBySeller = catchAsync(async (req, res, next) => {
   console.log('passou');
-  // const sellerExists = await User.findById(req.user.id);
+  const sellerExists = await User.findById(req.user.id);
 
-  // if (!sellerExists) {
-  //   return next(new AppError('realize o login novamente', 401));
-  // }
-  // const orders = await Order.find(
-  //   { seller: req.user.id },
-  //   {
-  //     orderAmount: { admProfit: 0 },
-  //     seller: 0,
-  //     typeProducts: 0,
-  //     itemProducts: 0,
-  //   },
-  // )
-  //   .populate([
-  //     { path: 'costumer', select: 'userName' },
-  //   ]);
+  if (!sellerExists) {
+    return next(new AppError('realize o signIn novamente', 401));
+  }
+  const orders = await Order.find(
+    { seller: req.user.id },
+    {
+      orderAmount: { admProfit: 0 },
+      seller: 0,
+      typeProducts: 0,
+      itemProducts: 0,
+    },
+  )
+    .populate([
+      { path: 'costumer', select: 'userName' },
+    ]);
 
-  // res.status(200).json({
-  //   status: 'success',
-  //   total: orders.length,
-  //   data: orders,
-  // });
+  res.status(200).json({
+    status: 'success',
+    total: orders.length,
+    data: orders,
+  });
 });
 
 exports.salesStatsBySeller = catchAsync(async (req, res, next) => {

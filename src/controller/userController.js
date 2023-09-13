@@ -38,30 +38,10 @@ exports.show = catchAsync(async (req, res, next) => {
   });
 });
 
-exports.guestBecomeSeller = catchAsync(async (req, res, next) => {
-  const { user } = req;
-  if (!user) {
-    return next(new AppError('seu login temporário está expirado,favor, realize o login novamente'));
-  }
-
-  // using save() to respect the validation rules
-  user.userName = req.body.userName;
-  user.password = req.body.password;
-  user.passwordConfirm = req.body.passwordConfirm;
-  user.phone = req.body.phone;
-  user.role = 'seller';
-  const newUser = await user.save();
-  createAndSendJWTToken(
-    newUser,
-    200,
-    res,
-    'success',
-  );
-});
 exports.createCostumer = catchAsync(async (req, res, next) => {
   const { user } = req;
   if (!user) {
-    return next(new AppError('sua sessão expirou, favor, realize o login novamente'));
+    return next(new AppError('sua sessão expirou, favor, realize o signIn novamente'));
   }
   const costumer = await User.create({
     userName: req.body.userName,

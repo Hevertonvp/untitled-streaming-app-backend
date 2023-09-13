@@ -5,6 +5,7 @@ const helmet = require('helmet');
 const mongoSanatize = require('express-mongo-sanitize');
 const xss = require('xss-clean');
 const hpp = require('hpp');
+const cors = require('cors');
 const userRoutes = require('./routes/userRoutes');
 const typeProductRoutes = require('./routes/typeProductRoutes');
 const orderRoutes = require('./routes/orderRoutes');
@@ -14,6 +15,12 @@ const AppError = require('./utils/appError');
 
 const app = express();
 
+const corsConfig = {
+  credentials: true,
+  origin: true,
+};
+app.use(cors(corsConfig));
+
 app.use(helmet());
 
 if (process.env.NODE_ENV === 'development') {
@@ -21,10 +28,10 @@ if (process.env.NODE_ENV === 'development') {
 }
 
 const limiter = rateLimit({
-  max: 400,
+  max: 4000000, // change
   windowMs: 60 * 60 * 1000,
   message:
-  'Limite de requisições para mesmo usuário atingido, tente novamente em uma hora',
+    'Limite de requisições para mesmo usuário atingido, tente novamente em uma hora',
 });
 
 app.use('/api', limiter);

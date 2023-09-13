@@ -8,8 +8,8 @@ const handleDbDuplicatedFields = (err) => {
   const message = `O valor já existe no banco, tente um valor diferente! ${err.path}: ${err}`;
   return new AppError(message, 404);
 };
-const handleTokenModifiedJsonError = (err) => new AppError('erro de validação do token, por favor, faça login novamente', 401);
-const handleTokenExpiredJsonError = (err) => new AppError('seu acesso expirou por favor, faça login novamente ', 401);
+const handleTokenModifiedJsonError = (err) => new AppError('erro de validação do token, por favor, faça signIn novamente', 401);
+const handleTokenExpiredJsonError = (err) => new AppError('seu acesso expirou por favor, faça signIn novamente ', 401);
 const sendErrorDev = (err, res) => {
   res.status(err.statusCode).json({
     status: err.status,

@@ -13,10 +13,7 @@ exports.index = async (req, res) => {
   try {
     res.status(201).json({
       status: 'success',
-      data: {
-        results: products.length,
-        products,
-      },
+      products,
     });
   } catch (error) {
     res.status(400).json({

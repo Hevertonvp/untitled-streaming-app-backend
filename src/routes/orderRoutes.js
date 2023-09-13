@@ -31,11 +31,6 @@ router.get(
   orderStatsController.productsStats,
 );
 
-router.get(
-  '/fastSale',
-  orderController.fastSale,
-);
-
 // sales management
 
 router.post(
