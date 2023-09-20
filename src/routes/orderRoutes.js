@@ -2,32 +2,32 @@ const express = require('express');
 
 const router = express.Router();
 const authController = require('../controller/authController');
+const { authorization } = require('../middlewares/authorization');
+const authentication = require('../middlewares/authentication');
 const orderController = require('../controller/OrderController');
 const orderStatsController = require('../controller/orderStatsController');
 
 // sales statistics
+
+router.use(authorization);
+router.use(authentication('seller'));
+
 router.get(
   '/',
-  authController.protect,
-  authController.restrictTo('seller'),
   orderController.index,
 );
+router.use(authentication('admin'));
+
 router.get(
   '/sales-stats',
-  authController.protect,
-  authController.restrictTo('admin'),
   orderStatsController.salesStats,
 );
 router.get(
   '/sellers-stats',
-  authController.protect,
-  authController.restrictTo('admin'),
   orderStatsController.sellerStats,
 );
 router.get(
   '/products-stats',
-  authController.protect,
-  authController.restrictTo('admin'),
   orderStatsController.productsStats,
 );
 
@@ -35,11 +35,8 @@ router.get(
 
 router.post(
   '/createSaleOrder',
-  authController.protect,
   orderController.createSaleOrder,
 );
-
-// created by visitor?
 
 router.delete('/', orderController.destroyMany); // delete
 module.exports = router;

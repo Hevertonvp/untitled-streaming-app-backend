@@ -78,7 +78,7 @@ const userSchema = new Schema({
     required: true,
     default: moment().toDate(),
   },
-  refreshToken: [String],
+  refreshToken: String,
 });
 
 userSchema.pre('save', async function (next) {

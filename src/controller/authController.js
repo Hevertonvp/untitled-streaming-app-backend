@@ -4,34 +4,38 @@
 const { promisify } = require('util');
 const jwt = require('jsonwebtoken');
 const crypto = require('crypto');
+const bcrypt = require('bcryptjs');
+
 const moment = require('moment');
 const User = require('../model/user');
-
+const generateAccessToken = require('../utils/createAndSendJWTToken');
 const catchAsync = require('../utils/catchAsync');
 const AppError = require('../utils/appError');
 const sendEmail = require('../utils/email');
-const createAndSendJWTToken = require('../utils/createAndSendJWT');
+const { createAndSendAccessJWTToken } = require('../utils/createAndSendJWTToken');
+const { handleRefreshToken } = require('../utils/createAndSendJWTToken');
 
-// a token sent just to verify the email address
-const createAndSendFirstAccessToken = async (email) => {
-  const firstAccessToken = crypto.randomBytes(3).toString('hex');
-  const message = `Copie e cole o token abaixo para ter acesso ao sistema: \n\n ${firstAccessToken}`;
+// this method sends a token just to verify the email address.
+const createEmailAccessToken = async (email) => {
+  const emailToken = crypto.randomBytes(3).toString('hex');
+  const message = `Copie e cole o token abaixo para ter acesso ao sistema: \n\n ${emailToken}`;
 
-  // try {
-  //   await sendEmail({
-  //     email,
-  //     subject: 'Soliticação do acesso',
-  //     message,
-  //   });
-  // } catch (error) {
-  //   return (new AppError('falha no envio do email do usuário.
-  // tente novamente em alguns minutos', 500));
-  // }
-  return firstAccessToken;
+  if (process.env.NODE_ENV === 'production') {
+    try {
+      await sendEmail({
+        email,
+        subject: 'Soliticação do acesso',
+        message,
+      });
+    } catch (error) {
+      return (new AppError(`falha no envio do email do usuário.
+      tente novamente em alguns minutos`, 500));
+    }
+  } else return emailToken;
 };
 
-exports.sendFirstAccessToken = catchAsync(async (req, res, next) => {
-  const token = await createAndSendFirstAccessToken(req.body.email);
+exports.sendEmailAccessToken = catchAsync(async (req, res, next) => {
+  const token = await createEmailAccessToken(req.body.email);
   const user = await User.findOne({ email: req.body.email });
   const tokenExpiresIn = moment().add(50, 'm').toDate();
   const message = `um token foi enviado para o email ${req.body.email},
@@ -62,15 +66,16 @@ exports.sendFirstAccessToken = catchAsync(async (req, res, next) => {
   res.status(200).json({
     status: 'success',
     message,
-    data: token, // deletar
+    data: token,
   });
 });
 
-exports.firstAccessWithToken = async (req, res, next) => {
+exports.firstTokenAccess = async (req, res, next) => {
   const guest = await User.findOne({ emailConfirmToken: req.body.token });
+
   if (!guest) {
     return next(new AppError(`Não foi possível encontrar o usuário.
-    Verifique o token de acesso e tente novamente`, 404));
+    Solicite seu token de acesso`, 404));
   }
 
   if (moment().toDate() > guest.emailConfirmTokenExpires) {
@@ -81,33 +86,35 @@ exports.firstAccessWithToken = async (req, res, next) => {
   guest.emailIsValidated = true;
   guest.emailConfirmToken = undefined;
   guest.emailConfirmTokenExpires = undefined;
-  const newGuest = await guest.save({ validateBeforeSave: false });
-  await createAndSendJWTToken(newGuest, 200, res, message);
+  const user = await guest.save({ validateBeforeSave: false });
+  createAndSendAccessJWTToken(
+    user,
+    200,
+    res,
+    'success',
+  );
 };
 
 exports.signUp = async (req, res, next) => {
   const { user } = req;
-
   if (!user) {
     return next(new AppError('seu signIn temporário está expirado,favor, realize o signIn novamente'));
   }
 
   try {
-    const newUser = await user.save();
     user.userName = req.body.userName;
     user.password = req.body.password;
     user.passwordConfirm = req.body.passwordConfirm;
     user.phone = req.body.phone;
     user.role = 'costumer';
-    createAndSendJWTToken(
-      newUser,
-      200,
-      res,
-      'success',
-    );
+    await user.save();
   } catch (error) {
     return next(new AppError(error.message));
   }
+  res.status(200).json({
+    data: user.userName,
+    message: 'usuário criado com sucesso',
+  });
 };
 
 exports.signIn = catchAsync(async (req, res, next) => {
@@ -116,39 +123,40 @@ exports.signIn = catchAsync(async (req, res, next) => {
     return next(new AppError('verifique se o usuário e senha foram inseridos', 404));
   }
   const user = await User.findOne({ email }).select('+password');
-  console.log(user.password);
+
   if (
     !user
     || !(await user.correctPassword(password, user.password))
   ) {
     return next(new AppError('verifique o seu email e senha e tente novamente', 401));
   }
-  createAndSendJWTToken(user, 200, res);
+  createAndSendAccessJWTToken(user, 200, res);
 });
 
-exports.protect = catchAsync(async (req, res, next) => {
-  let token;
-  if (req.headers.authorization && req.headers.authorization.startsWith('Bearer')) {
-    token = req.headers.authorization.split(' ')[1];
-  }
-  if (!token) {
-    return next(new AppError('você precisa fazer signIn antes de realizar essa ação'));
-  }
-  const decoded = await promisify(jwt.verify)(token, process.env.JWT_SECRET);
+exports.signOut = async (req, res, next) => {
+  // on client, delete the accessToken
 
-  // check if the user still exists in the database
-  const newUser = await User.findById(decoded.id);
-  if (!newUser) {
-    return next(new AppError('o usuário tentando acessar foi deletado', 401));
+  if (!req.cookies?.jwt) return next(new AppError('não foi possível deslogar do sistema', 403));
+  const refreshToken = req.cookies.jwt;
+  const dbUser = await User.findOne({ refreshToken });
+  const cookieOptions = {
+    expiresIn: new Date(Date.now()
+      + process.env.JWT_COOKIE_EXPIRES_IN * 24 * 60 * 60 * 1000),
+    secure: false,
+    httpOnly: true,
+  };
+  if (process.env.NODE_ENV === 'production') {
+    cookieOptions.secure = true;
   }
-
-  if (newUser.changePasswordAfter(decoded.iat)) {
-    return next(new AppError('o usuário mudou a senha recentemente, por favor, faça signIn novamente', 401));
+  if (!dbUser) {
+    res.clearCookie('jwt', cookieOptions);
+    return next(new AppError('usuário não possui um token válido', 403));
   }
-  req.user = newUser; // req.user is the one that travels over middlewares
-
-  next();
-});
+  res.clearCookie('jwt', cookieOptions);
+  dbUser.refreshToken = undefined;
+  dbUser.save();
+  res.status(200).json({ success: true });
+};
 
 exports.restrictTo = (...roles) => (req, res, next) => {
   if (!roles.includes(req.user.role)) {
@@ -158,10 +166,30 @@ exports.restrictTo = (...roles) => (req, res, next) => {
   next();
 };
 
+exports.refreshToken = (async (req, res, next) => {
+  const cookies = req.cookies;
+  if (!cookies?.jwt) return next(new AppError('usuário necessita logar no sistema', 401));
+  const refreshToken = req.cookies.jwt;
+  const decoded = await promisify(jwt.verify)(refreshToken, process.env.REFRESH_JWT_SECRET);
+
+  const dbUser = await User.findById(decoded.id);
+
+  if (!dbUser) return next(new AppError('usuário não autorizado', 401));
+
+  const token = jwt.sign(
+    { id: dbUser.id },
+    process.env.JWT_SECRET,
+    { expiresIn: process.env.JWT_EXPIRES_IN },
+  );
+  res.status(200).json({
+    token,
+  });
+});
+
 exports.forgotPassword = catchAsync(async (req, res, next) => {
   const user = await User.findOne({ email: req.body.email });
   if (!user || user.role === 'guest') {
-    return next(new AppError('não existe usuário com o email informado', 404));
+    return next(AppError('não existe usuário com o email informado', 404));
   }
   const resetToken = user.createPasswordResetToken();
   await user.save({ validateBeforeSave: false });
@@ -203,7 +231,7 @@ exports.resetPassword = catchAsync(async (req, res, next) => {
   user.passwordResetToken = undefined;
   user.passwordResetExpires = undefined;
   await user.save();
-  createAndSendJWTToken(user, 200, res);
+  createAndSendAccessJWTToken(user, 200, res);
 });
 
 exports.updatePassword = async (req, res, next) => {
@@ -214,5 +242,5 @@ exports.updatePassword = async (req, res, next) => {
   user.password = req.body.password;
   user.passwordConfirm = req.body.passwordConfirm;
   await user.save();
-  createAndSendJWTToken(user, 200, res);
+  createAndSendAccessJWTToken(user, 200, res);
 };

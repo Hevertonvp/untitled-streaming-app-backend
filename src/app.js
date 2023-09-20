@@ -1,5 +1,6 @@
 const express = require('express');
 const morgan = require('morgan');
+const cookieParser = require('cookie-parser');
 const rateLimit = require('express-rate-limit');
 const helmet = require('helmet');
 const mongoSanatize = require('express-mongo-sanitize');
@@ -49,6 +50,7 @@ app.use(hpp({
 }));
 
 app.use(express.static('public'));
+app.use(cookieParser());
 
 app.get('/', (req, res) => console.log(res.send('youre in home')));
 app.use('/api/v1/users', userRoutes);

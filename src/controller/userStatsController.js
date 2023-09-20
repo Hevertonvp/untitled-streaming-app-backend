@@ -6,7 +6,6 @@ const Order = require('../model/order');
 const catchAsync = require('../utils/catchAsync');
 
 exports.salesDataBySeller = catchAsync(async (req, res, next) => {
-  console.log('passou');
   const sellerExists = await User.findById(req.user.id);
 
   if (!sellerExists) {

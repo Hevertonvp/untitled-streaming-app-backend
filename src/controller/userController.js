@@ -5,7 +5,7 @@ const catchAsync = require('../utils/catchAsync');
 const AppError = require('../utils/appError');
 const sendEmail = require('../utils/email');
 const factory = require('./factoryHandler');
-const createAndSendJWTToken = require('../utils/createAndSendJWT');
+const createAndSendJWTTokenToken = require('../utils/createAndSendJWTToken');
 
 const filterObj = (obj, ...fields) => {
   let newObj = {};
@@ -29,7 +29,6 @@ exports.show = catchAsync(async (req, res, next) => {
         emailIsValidated: 1,
       },
     );
-
   res.status(201).json({
     status: 'success',
     data: {
